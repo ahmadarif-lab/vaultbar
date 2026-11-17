@@ -32,7 +32,7 @@
 
 The layout follows the browser extension: **Vault**, **Generator**, **2FA** and **Settings** tabs.
 Everything, including first-run login and all settings, lives in the popover: no extra windows.
-It follows the macOS light or dark appearance.
+Light or dark follows macOS by default, or pick one in Settings.
 
 - **Vault**: fuzzy search (name, username, website, folder), folder / type / organization filters,
   favorites, and per-item **copy** (a small menu offers username, password or code when there is a
@@ -61,7 +61,7 @@ It follows the macOS light or dark appearance.
   browser extension or take a backup out. Import skips items already in the vault (running it twice is
   harmless), keeps folders and password history, and reports what it skipped. Export asks for the master
   password first. Passkeys are not carried over; encrypted/CSV exports are not supported yet.
-- **Settings**: Touch ID, auto-lock, lock when closed, clipboard timeout, global hotkey recorder,
+- **Settings**: theme (System, Light or Dark), Touch ID, auto-lock, lock when closed, clipboard timeout, global hotkey recorder,
   start at login, close after copying, website icons, organization items, language, import/export,
   and **About** with the version, the server version and *Check for updates*.
 - Item detail with hidden-field masking, English and Bahasa Indonesia, light and dark.

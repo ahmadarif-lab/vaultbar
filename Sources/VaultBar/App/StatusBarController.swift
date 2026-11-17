@@ -22,6 +22,8 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         popover.delegate = self
         popover.contentSize = NSSize(width: PopoverMetrics.width, height: PopoverMetrics.height)
         popover.contentViewController = NSHostingController(rootView: PopoverView(state: state))
+        applyAppearance()
+        state.settings.onAppearanceChanged = { [weak self] in self?.applyAppearance() }
 
         if let button = statusItem.button {
             button.image = MenuBarIcon.image(locked: state.phase != .unlocked)
@@ -37,6 +39,13 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         }
         state.closePopover = { [weak self] in self?.close() }
         state.lockChanged = { [weak self] locked in self?.statusItem.button?.image = MenuBarIcon.image(locked: locked) }
+    }
+
+    /// Applies the theme choice to the popover and the toast (nil follows macOS).
+    private func applyAppearance() {
+        let appearance = state.settings.appearance.nsAppearance
+        NSApp.appearance = appearance
+        popover.appearance = appearance
     }
 
     // MARK: Toggle

@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Observation
 import VaultKit
@@ -14,6 +15,21 @@ enum AppDefaults {
         }
         return suite
     }()
+}
+
+/// Light, dark, or follow macOS.
+enum AppearanceChoice: String, CaseIterable, Identifiable {
+    case system, light, dark
+    var id: String { rawValue }
+    /// nil follows the system.
+    var nsAppearance: NSAppearance? {
+        switch self {
+        case .system: return nil
+        case .light: return NSAppearance(named: .aqua)
+        case .dark: return NSAppearance(named: .darkAqua)
+        }
+    }
+    var titleKey: String { "theme.\(rawValue)" }
 }
 
 /// Non-secret preferences, persisted in UserDefaults. Nothing sensitive lives
@@ -48,6 +64,8 @@ final class AppSettings {
     var hotkeyKeyCode: UInt32 { didSet { defaults.set(Int(hotkeyKeyCode), forKey: "hotkeyKeyCode"); onHotkeyChanged?() } }
     var hotkeyModifiers: UInt32 { didSet { defaults.set(Int(hotkeyModifiers), forKey: "hotkeyModifiers"); onHotkeyChanged?() } }
     @ObservationIgnored var onHotkeyChanged: (() -> Void)?
+    var appearance: AppearanceChoice { didSet { defaults.set(appearance.rawValue, forKey: "appearance"); onAppearanceChanged?() } }
+    @ObservationIgnored var onAppearanceChanged: (() -> Void)?
     /// Lock the vault the moment the popover closes. Off by default.
     var lockOnClose: Bool { didSet { defaults.set(lockOnClose, forKey: "lockOnClose") } }
     /// Close the popover right after a copy (so ⌘V lands in the previous app). Off by default.
@@ -77,6 +95,7 @@ final class AppSettings {
         hotkeyEnabled = d.object(forKey: "hotkeyEnabled") as? Bool ?? true
         hotkeyKeyCode = UInt32(d.object(forKey: "hotkeyKeyCode") as? Int ?? Int(Self.defaultHotkeyKeyCode))
         hotkeyModifiers = UInt32(d.object(forKey: "hotkeyModifiers") as? Int ?? Int(Self.defaultHotkeyModifiers))
+        appearance = AppearanceChoice(rawValue: d.string(forKey: "appearance") ?? "") ?? .system
         closeAfterCopy = d.bool(forKey: "closeAfterCopy")
         lockOnClose = d.bool(forKey: "lockOnClose")
         showFavicons = d.bool(forKey: "showFavicons")

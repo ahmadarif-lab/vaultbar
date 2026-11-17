@@ -246,6 +246,8 @@ struct SettingsTabView: View {
             ToggleRow(title: t("settings.closeAfterCopy"), note: t("settings.closeAfterCopyNote"), isOn: $settings.closeAfterCopy)
             ToggleRow(title: t("settings.favicons"), note: t("settings.faviconsNote"), isOn: $settings.showFavicons)
             ToggleRow(title: t("settings.hideOrg"), isOn: $settings.hideOrgItems)
+            PickerRow(title: t("settings.theme"), options: AppearanceChoice.allCases.map { ($0, t($0.titleKey)) },
+                      selection: $settings.appearance)
             PickerRow(title: t("settings.language"), options: Language.allCases.map { ($0, $0.displayName) },
                       selection: $settings.language, divider: false)
         }

@@ -98,6 +98,14 @@ enum SelfTest {
         }
         check(state.folders.count == folderCount, "a folder can be deleted")
 
+        // Theme: forced dark/light, then back to the system
+        state.settings.appearance = .dark
+        check(NSApp.appearance?.name == .darkAqua, "theme: Dark forces the dark appearance")
+        state.settings.appearance = .light
+        check(NSApp.appearance?.name == .aqua, "theme: Light forces the light appearance")
+        state.settings.appearance = .system
+        check(NSApp.appearance == nil, "theme: System follows macOS")
+
         // Lock when closed
         state.settings.lockOnClose = true
         bar.close()
