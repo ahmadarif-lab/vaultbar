@@ -2,9 +2,12 @@ name: Release
 
 # Push a tag such as v0.2.0 (after bumping CFBundleShortVersionString in Resources/Info.plist and adding a
 # "## 0.2.0" section to CHANGELOG.md) and this builds the universal app, the DMG and the PKG, and publishes them.
+# Run it by hand (Actions -> Release -> Run workflow) to test the packaging: it builds and uploads the files as a
+# workflow artifact without publishing anything.
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -13,12 +16,12 @@ jobs:
   release:
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Check the tag matches the app version
         run: |
           version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Resources/Info.plist)"
-          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "v$version" != "$GITHUB_REF_NAME" ]; then
             echo "Tag $GITHUB_REF_NAME does not match Info.plist version $version" >&2
             exit 1
           fi
@@ -45,7 +48,18 @@ jobs:
             echo 'or download **`VaultBar.pkg`** (double-click installer) or **`VaultBar.dmg`** (drag to Applications). The app is ad-hoc signed and the installer is unsigned, so macOS warns the first time: right-click the file and choose **Open**.'
           } > notes.md
 
+      - name: Keep the files (manual test run)
+        if: github.ref_type != 'tag'
+        uses: actions/upload-artifact@v5
+        with:
+          name: VaultBar-${{ env.VERSION }}
+          path: |
+            dist/VaultBar.pkg
+            dist/VaultBar.dmg
+            notes.md
+
       - name: Publish the release
+        if: github.ref_type == 'tag'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
