@@ -223,6 +223,8 @@ final class AppState {
         do {
             let password = try await BiometricUnlock.retrieve(reason: t("lock.touchIDReason"), slot: biometricSlot)
             await unlock(password: password, fromBiometric: true)
+            // The system Touch ID sheet takes focus, which closes the transient popover; bring it back once unlocked.
+            if phase == .unlocked { requestShowPopover?() }
         } catch BiometricUnlock.Failure.cancelled {
             return
         } catch BiometricUnlock.Failure.invalidated {
