@@ -1,9 +1,9 @@
 # Homebrew cask for the ahmadarif-lab/tap repository (Casks/vaultbar.rb).
 # Release flow: bump the version in Resources/Info.plist -> Scripts/package_release.sh
-# -> gh release create vX.Y.Z dist/VaultBar.dmg -> update version and sha256 below.
+# -> gh release create vX.Y.Z dist/VaultBar.dmg dist/VaultBar.pkg -> update version and the DMG sha256 below.
 cask "vaultbar" do
   version "0.1.0"
-  sha256 "4dacefd986704856010791e68af4d3e06d4807199a1ef7d836b00f7f5f6cb186"
+  sha256 "006ef8ca0e93e5253f4912c1dae88e7225265e4d7cb50a2ddf520256c652c4a5"
 
   url "https://github.com/ahmadarif-lab/vaultbar/releases/download/v#{version}/VaultBar.dmg"
   name "VaultBar"

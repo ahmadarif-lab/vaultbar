@@ -15,3 +15,4 @@ First release.
   current app or site.
 - Touch ID unlock, auto-lock, lock when closed, clipboard auto-clear, global hotkey, start at login.
 - Light, dark or system theme; English and Bahasa Indonesia.
+- Downloads: `VaultBar.pkg` (double-click installer) and `VaultBar.dmg`.

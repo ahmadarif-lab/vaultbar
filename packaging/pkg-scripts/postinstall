@@ -1,0 +1,9 @@
+#!/bin/sh
+# Files laid down by the installer carry no quarantine flag, but clear it anyway, then open the app
+# as the person who is logged in (the installer itself runs as root).
+/usr/bin/xattr -dr com.apple.quarantine /Applications/VaultBar.app 2>/dev/null
+user="$(/usr/bin/stat -f%Su /dev/console 2>/dev/null)"
+if [ -n "$user" ] && [ "$user" != "root" ]; then
+    /usr/bin/sudo -u "$user" /usr/bin/open -a /Applications/VaultBar.app 2>/dev/null
+fi
+exit 0

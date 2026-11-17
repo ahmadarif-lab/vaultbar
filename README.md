@@ -113,8 +113,15 @@ and collection management, passkeys.
 brew install --cask ahmadarif-lab/tap/vaultbar
 ```
 
-Or download `VaultBar.dmg` from Releases. The app is ad-hoc signed, not notarized, so on a manual
-install right-click → Open the first time (the Homebrew cask clears the quarantine flag for you).
+Or download from Releases:
+
+- **`VaultBar.pkg`**: double-click and follow the installer. It puts VaultBar in `Applications`
+  (replacing an older copy, which keeps your accounts) and opens it. No drag and drop.
+- **`VaultBar.dmg`**: open it and drag VaultBar to `Applications`.
+
+The app is ad-hoc signed and the installer is unsigned, not notarized by Apple, so macOS warns the
+first time: right-click the file → **Open** (or, for the app, clear the flag with
+`xattr -dr com.apple.quarantine /Applications/VaultBar.app`). The Homebrew cask does this for you.
 
 ## Logging in
 

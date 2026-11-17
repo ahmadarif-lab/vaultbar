@@ -1,0 +1,4 @@
+#!/bin/sh
+# Quit a running VaultBar so the installer can replace it (an upgrade keeps your accounts and settings).
+/usr/bin/pkill -x VaultBar 2>/dev/null
+exit 0
