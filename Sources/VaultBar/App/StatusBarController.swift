@@ -78,6 +78,10 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
 
     func popoverDidClose(_ notification: Notification) {
         removeKeyMonitor()
+        // "Lock when closed". Import/Export close the popover on purpose to show a file dialog: not a lock trigger.
+        if state.settings.lockOnClose, state.phase == .unlocked, !state.keepAppActive {
+            Task { await state.lock() }
+        }
         // Hand focus back to the app the user was in, so ⌘V lands there. But never hide
         // the app while Settings or Setup is open: hide() would take that window with it.
         let otherWindowOpen = NSApp.windows.contains { $0.isVisible && $0.styleMask.contains(.titled) }

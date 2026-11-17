@@ -97,6 +97,17 @@ enum SelfTest {
         }
         check(state.folders.count == folderCount, "a folder can be deleted")
 
+        // Lock when closed
+        state.settings.lockOnClose = true
+        bar.close()
+        await wait(0.8)
+        check(state.phase == .locked && state.entries.isEmpty, "closing the popover locks the vault when 'lock when closed' is on")
+        state.settings.lockOnClose = false
+        await state.unlock(password: "demo")
+        bar.show()
+        await wait(0.8)
+        check(state.phase == .unlocked && bar.isShown, "unlock again after a lock-on-close")
+
         // Tabs, generator, copy keeping the popover open
         state.tab = .generator
         let first = state.generator.value

@@ -225,6 +225,7 @@ struct SettingsTabView: View {
                     }
                 }
             }
+            ToggleRow(title: t("settings.lockOnClose"), note: t("settings.lockOnCloseNote"), isOn: $settings.lockOnClose)
             PickerRow(title: t("settings.autoLock"), options: [
                 (1, t("settings.minutes", 1)), (5, t("settings.minutes", 5)), (15, t("settings.minutes", 15)),
                 (30, t("settings.minutes", 30)), (60, t("settings.hours", 1)), (0, t("settings.never")),
