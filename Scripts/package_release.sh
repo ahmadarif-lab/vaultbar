@@ -27,8 +27,10 @@ cp -R "$ROOT_DIR/dist/VaultBar.app" "$PKGROOT/"
 # Not relocatable: otherwise the installer would "upgrade" a stray copy of VaultBar.app found elsewhere on the disk.
 COMPONENTS="$(mktemp -d)/components.plist"
 pkgbuild --analyze --root "$PKGROOT" "$COMPONENTS" >/dev/null
-/usr/libexec/PlistBuddy -c "Add :0:BundleIsRelocatable bool false" "$COMPONENTS"
-/usr/libexec/PlistBuddy -c "Set :0:BundleIsVersionChecked false" "$COMPONENTS" # always replace, even with the same version
+# Which keys --analyze writes differs between macOS versions, so set a key if it is there and add it if not.
+set_bool() { /usr/libexec/PlistBuddy -c "Set :0:$1 false" "$COMPONENTS" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :0:$1 bool false" "$COMPONENTS"; }
+set_bool BundleIsRelocatable
+set_bool BundleIsVersionChecked # always replace, even with the same version
 pkgbuild --root "$PKGROOT" --component-plist "$COMPONENTS" --identifier dev.ahmadarif.vaultbar.pkg \
     --version "$VERSION" --install-location /Applications --scripts "$ROOT_DIR/packaging/pkg-scripts" "$PKG" >/dev/null
 rm -rf "$PKGROOT"
