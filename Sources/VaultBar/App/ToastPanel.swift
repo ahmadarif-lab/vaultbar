@@ -1,14 +1,14 @@
 import AppKit
 import SwiftUI
 
-/// A small floating confirmation under the menu bar icon. The popover closes
-/// right after a copy, so the toast has to live in its own non-activating panel.
+/// A small floating confirmation under the menu bar icon (or over the open popover's
+/// bottom edge). It lives in its own non-activating panel so it survives the popover closing.
 @MainActor
 final class ToastPanel {
     private var panel: NSPanel?
     private var hideTask: Task<Void, Never>?
 
-    func show(_ text: String, below button: NSStatusBarButton?) {
+    func show(_ text: String, below button: NSStatusBarButton?, inside popoverWindow: NSWindow? = nil) {
         hideTask?.cancel()
         let hosting = NSHostingView(rootView: ToastView(text: text))
         let size = hosting.fittingSize
@@ -33,6 +33,10 @@ final class ToastPanel {
             if let screen = window.screen {
                 origin.x = min(max(origin.x, screen.frame.minX + 8), screen.frame.maxX - size.width - 8)
             }
+        }
+        if let popoverWindow {
+            // The popover stays open: float the toast just above its tab bar instead of over the header.
+            origin = NSPoint(x: popoverWindow.frame.midX - size.width / 2, y: popoverWindow.frame.minY + 64)
         }
         panel.setFrameOrigin(origin)
         panel.alphaValue = 0

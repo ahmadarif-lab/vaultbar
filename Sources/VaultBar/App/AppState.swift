@@ -458,7 +458,7 @@ final class AppState {
         Clipboard.copy(value, clearAfter: settings.clipboardSeconds)
         noteActivity()
         let seconds = settings.clipboardSeconds
-        closePopover?()
+        if settings.closeAfterCopy { closePopover?() }
         showToast?(seconds > 0 ? t("toast.copiedClears", seconds) : t("toast.copied"))
     }
 
@@ -630,6 +630,7 @@ final class AppState {
         if case .folder(let id) = folderFilter { folderId = id }
         editor = ItemDraft(type: typeFilter ?? .login, folderId: folderId)
         editorError = nil
+        editorFocusesKey = false
         noteActivity()
     }
 

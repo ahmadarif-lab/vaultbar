@@ -91,6 +91,9 @@ enum SelfTest {
         check(!first.isEmpty && first != state.generator.value, "generator produces a new value each time")
         state.tab = .authenticator
         check(state.rows.allSatisfy { $0.entry.totp != nil } && !state.rows.isEmpty, "2FA tab lists only items with a key")
+        state.copyValue("selftest-copy", missingKey: "toast.copied")
+        await wait(1.2)
+        check(bar.isShown, "popover stays open after a normal copy")
         state.copyKeepingOpen("selftest")
         await wait(1.2)
         check(bar.isShown, "popover stays open after a keep-open copy + toast")

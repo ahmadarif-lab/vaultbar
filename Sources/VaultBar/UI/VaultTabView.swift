@@ -70,7 +70,7 @@ struct VaultTabView: View {
     var body: some View {
         let rows = state.rows
         VStack(spacing: 0) {
-            ScreenHeader(title: t("tab.vault")) {
+            ScreenHeader(state: state, title: t("tab.vault")) {
                 if state.isDemo {
                     Text(t("demo.badge").uppercased())
                         .font(.system(size: 9.5, weight: .bold)).foregroundStyle(Theme.accent)
@@ -87,18 +87,11 @@ struct VaultTabView: View {
                     .background(RoundedRectangle(cornerRadius: 9).fill(Theme.accent))
                 }
                 .buttonStyle(.plain)
-                accountMenu
             }
             searchRow
             selects
             list(rows)
         }
-    }
-
-    private var accountMenu: some View {
-        Button { state.showAccounts = true } label: { AccountBadge(initials: state.accountInitials) }
-            .buttonStyle(.plain)
-            .help(t("acct.title"))
     }
 
     private var searchRow: some View {
@@ -266,7 +259,7 @@ struct AuthenticatorTabView: View {
     var body: some View {
         let rows = state.rows
         VStack(spacing: 0) {
-            ScreenHeader(title: t("tab.2fa")) {
+            ScreenHeader(state: state, title: t("tab.2fa"), showsAccount: false) {
                 Text("\(rows.count)").font(.system(size: 12)).foregroundStyle(Theme.textSecondary)
                 Button { state.beginAddAuthenticator() } label: {
                     HStack(spacing: 5) {

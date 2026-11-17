@@ -204,7 +204,9 @@ func openableURL(_ raw: String) -> URL? {
 }
 
 struct ScreenHeader<Trailing: View>: View {
+    let state: AppState
     let title: String
+    var showsAccount = true
     @ViewBuilder var trailing: Trailing
 
     var body: some View {
@@ -212,6 +214,11 @@ struct ScreenHeader<Trailing: View>: View {
             Text(title).font(.system(size: 21, weight: .semibold)).foregroundStyle(Theme.textPrimary)
             Spacer(minLength: 4)
             trailing
+            if showsAccount {
+                Button { state.showAccounts = true } label: { AccountBadge(initials: state.accountInitials) }
+                    .buttonStyle(.plain)
+                    .help(t("acct.title"))
+            }
         }
         .padding(.horizontal, 14).padding(.top, 14).padding(.bottom, 10)
     }

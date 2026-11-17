@@ -30,7 +30,11 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
 
-        state.showToast = { [weak self] text in self?.toast.show(text, below: self?.statusItem.button) }
+        state.showToast = { [weak self] text in
+            guard let self else { return }
+            let window = self.popover.isShown ? self.popover.contentViewController?.view.window : nil
+            self.toast.show(text, below: self.statusItem.button, inside: window)
+        }
         state.closePopover = { [weak self] in self?.close() }
         state.lockChanged = { [weak self] locked in self?.statusItem.button?.image = MenuBarIcon.image(locked: locked) }
     }

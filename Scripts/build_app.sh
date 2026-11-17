@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 # Builds a universal release binary and wraps it into VaultBar.app (LSUIElement,
-# no Dock icon). Ad-hoc signed with the hardened runtime; App Sandbox is off
-# on purpose, because the app has to spawn the `bw` command line tool.
+# no Dock icon), hardened runtime, App Sandbox off.
+#
+# Signing: ad-hoc by default (what the released dmg uses). An ad-hoc signature
+# changes with every build, so macOS asks for the login keychain password again
+# after each rebuild. For local builds set SIGN_IDENTITY to a certificate from
+# `security find-identity -v -p codesigning`; the code identity then stays the
+# same across rebuilds and the Keychain prompt appears only once.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -28,7 +33,8 @@ for size in 16 32 128 256 512; do
 done
 iconutil -c icns "$ICONSET" -o "$CONTENTS/Resources/AppIcon.icns"
 
-echo "Ad-hoc signing (hardened runtime)…"
-codesign --force --deep --options runtime --sign - "$APP_DIR"
+SIGN_IDENTITY="${SIGN_IDENTITY:--}"
+if [ "$SIGN_IDENTITY" = "-" ]; then echo "Ad-hoc signing (hardened runtime)…"; else echo "Signing with: $SIGN_IDENTITY"; fi
+codesign --force --deep --options runtime --sign "$SIGN_IDENTITY" "$APP_DIR"
 
 echo "Built: $APP_DIR"

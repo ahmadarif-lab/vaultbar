@@ -34,6 +34,8 @@ final class AppSettings {
     var hotkeyKeyCode: UInt32 { didSet { defaults.set(Int(hotkeyKeyCode), forKey: "hotkeyKeyCode"); onHotkeyChanged?() } }
     var hotkeyModifiers: UInt32 { didSet { defaults.set(Int(hotkeyModifiers), forKey: "hotkeyModifiers"); onHotkeyChanged?() } }
     @ObservationIgnored var onHotkeyChanged: (() -> Void)?
+    /// Close the popover right after a copy (so ⌘V lands in the previous app). Off by default.
+    var closeAfterCopy: Bool { didSet { defaults.set(closeAfterCopy, forKey: "closeAfterCopy") } }
     var showFavicons: Bool { didSet { defaults.set(showFavicons, forKey: "showFavicons") } }
     var hideOrgItems: Bool { didSet { defaults.set(hideOrgItems, forKey: "hideOrgItems") } }
 
@@ -59,6 +61,7 @@ final class AppSettings {
         hotkeyEnabled = d.object(forKey: "hotkeyEnabled") as? Bool ?? true
         hotkeyKeyCode = UInt32(d.object(forKey: "hotkeyKeyCode") as? Int ?? Int(Self.defaultHotkeyKeyCode))
         hotkeyModifiers = UInt32(d.object(forKey: "hotkeyModifiers") as? Int ?? Int(Self.defaultHotkeyModifiers))
+        closeAfterCopy = d.bool(forKey: "closeAfterCopy")
         showFavicons = d.bool(forKey: "showFavicons")
         hideOrgItems = d.bool(forKey: "hideOrgItems")
     }

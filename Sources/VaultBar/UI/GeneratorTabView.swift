@@ -7,7 +7,7 @@ struct GeneratorTabView: View {
     var body: some View {
         let g = state.generator
         VStack(spacing: 0) {
-            ScreenHeader(title: t("tab.generator")) { EmptyView() }
+            ScreenHeader(state: state, title: t("tab.generator"), showsAccount: false) { EmptyView() }
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 10) {
                     valueCard(g)

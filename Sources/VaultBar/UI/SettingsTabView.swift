@@ -141,7 +141,7 @@ struct SettingsTabView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ScreenHeader(title: t("tab.settings")) {
+            ScreenHeader(state: state, title: t("tab.settings")) {
                 if state.isDemo {
                     Text(t("demo.badge").uppercased())
                         .font(.system(size: 9.5, weight: .bold)).foregroundStyle(Theme.accent)
@@ -181,6 +181,7 @@ struct SettingsTabView: View {
             InfoRow(label: t("settings.email"), value: settings.accountEmail ?? "—")
             InfoRow(label: t("settings.server"), value: settings.server?.url ?? "—", divider: false)
             Rectangle().fill(Theme.stroke).frame(height: 1)
+            ActionRow(icon: "person.2", title: t("acct.title")) { state.showAccounts = true }
             if confirmLogout {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(t("settings.logoutConfirm")).font(.system(size: 12.5)).foregroundStyle(Theme.textPrimary)
@@ -240,6 +241,7 @@ struct SettingsTabView: View {
             ToggleRow(title: t("settings.loginItem"), isOn: Binding(
                 get: { loginItemOn },
                 set: { on in LoginItem.setEnabled(on); loginItemOn = LoginItem.isEnabled }))
+            ToggleRow(title: t("settings.closeAfterCopy"), note: t("settings.closeAfterCopyNote"), isOn: $settings.closeAfterCopy)
             ToggleRow(title: t("settings.favicons"), note: t("settings.faviconsNote"), isOn: $settings.showFavicons)
             ToggleRow(title: t("settings.hideOrg"), isOn: $settings.hideOrgItems)
             PickerRow(title: t("settings.language"), options: Language.allCases.map { ($0, $0.displayName) },
