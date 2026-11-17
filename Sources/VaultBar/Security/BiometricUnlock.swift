@@ -3,7 +3,7 @@ import LocalAuthentication
 import Security
 
 /// Touch ID unlock: the master password, not a session key, sits behind the
-/// biometric prompt (PRD decision 1).
+/// biometric prompt.
 ///
 /// Two storage modes, chosen automatically:
 ///  * `strict`: a Keychain item whose access control is

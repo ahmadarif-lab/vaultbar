@@ -97,7 +97,7 @@ final class AppState {
     init(demo: Bool) {
         isDemo = demo
         // Timers live here, not in a popover `.task`: those die when the
-        // popover closes (MenuBarExtra/popover lesson, PRD §6.4).
+        // popover closes.
         timers.append(Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.autoLockTick() }
         })
@@ -197,7 +197,7 @@ final class AppState {
         lockMessage = nil
         generator.regenerate()
         lockChanged?(false)
-        Task { await sync(silent: true) } // PRD 5.5: sync on unlock
+        Task { await sync(silent: true) } // sync on unlock
     }
 
     /// Keychain slot of the active account's Touch ID item.

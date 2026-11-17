@@ -1,16 +1,28 @@
 <p align="center">
-  <img src="Resources/AppIcon.png" alt="VaultBar app icon" width="128">
+  <img src="Resources/AppIcon.webp" alt="VaultBar app icon" width="128">
 </p>
 
 <h1 align="center">VaultBar</h1>
 
 <p align="center">
-  A native macOS menu bar app for your Bitwarden-compatible password vault: search, copy, and
-  live TOTP codes one click (or one hotkey) away, without opening a browser.
+  A native macOS menu bar app for your Bitwarden-compatible password vault: search, copy and
+  live 2FA codes one click (or one hotkey) away, without opening a browser.<br>
+  It speaks the Bitwarden API directly, so there is <strong>no <code>bw</code> CLI and no Node</strong> to install.
 </p>
 
 <p align="center">
-  <img src="Resources/screenshots/hero.webp" alt="VaultBar: vault list, 2FA codes and password generator" width="820">
+  <a href="#install">
+    <img src="https://img.shields.io/badge/Install-Homebrew-FBB040?style=flat-square&logo=homebrew&logoColor=white" alt="Install with Homebrew">
+  </a>
+  <a href="https://github.com/ahmadarif-lab/vaultbar/releases/latest">
+    <img src="https://img.shields.io/github/v/release/ahmadarif-lab/vaultbar?label=Download&style=flat-square&color=2f81f7&cacheSeconds=300" alt="Download the latest release">
+  </a>
+  <img src="https://img.shields.io/badge/macOS-14%2B-lightgrey?style=flat-square" alt="macOS 14 or later">
+  <img src="https://img.shields.io/github/license/ahmadarif-lab/vaultbar?style=flat-square" alt="MIT license">
+</p>
+
+<p align="center">
+  <img src="Resources/screenshots/hero.webp" alt="VaultBar: vault list, 2FA codes and password generator in the menu bar popover" width="900">
 </p>
 
 > The screenshots use a built-in demo vault with invented data. VaultBar is an independent
@@ -20,30 +32,38 @@
 
 The layout follows the browser extension: **Vault**, **Generator**, **2FA** and **Settings** tabs.
 Everything, including first-run login and all settings, lives in the popover: no extra windows.
+It follows the macOS light or dark appearance.
 
-- **Vault**: fuzzy search, folder / type / organization filters, favorites, per-item copy and a
-  ⋮ menu with **copy, edit, clone and delete** (delete moves to the trash, with a confirmation).
-  **Add** creates logins, cards, identities and notes, including custom fields and an
-  authenticator key. Edits are merged into the item's original JSON, so password history,
-  attachments and passkeys survive.
+- **Vault**: fuzzy search (name, username, website, folder), folder / type / organization filters,
+  favorites, and per-item **copy** (a small menu offers username, password or code when there is a
+  choice) plus a ⋮ menu with **view, edit, clone, delete and open**. Delete moves to the trash,
+  with a confirmation. **Add** creates logins, cards, identities and notes, including custom fields
+  and an authenticator key. Edits keep password history, passkeys and per-item keys intact.
 - **2FA**: every item with an authenticator key, with live codes computed locally (RFC 6238,
   tested against the RFC vectors): base32 secrets, `otpauth://` URIs (SHA1/256/512, 6 or 8
-  digits, any period) and `steam://` keys. Countdown ring, next code previewed in the last 5 s.
-  Works on the free plan; the key is your own data.
+  digits, any period) and `steam://` keys. Countdown ring; click to copy. Works on the free plan;
+  the key is your own data.
+- **Scan a setup QR code**: when a site shows a QR code to register 2FA, read it from the screen
+  (drag a box around it), from an image file, or from a screenshot on the clipboard. The key, name
+  and username are filled in for you. Google Authenticator's bulk export code is not supported.
 - **Generator**: passwords (length 5-128, character sets, minimum numbers/symbols, avoid
   ambiguous) and passphrases (EFF large wordlist), generated locally with the system CSPRNG.
   Options persist; generated values never do.
-- **Bitwarden cloud (US and EU), self-hosted Bitwarden and Vaultwarden**, multiple accounts, no `bw` CLI needed.
-- **Touch ID unlock** after the first master-password unlock; auto-lock on idle, sleep, screen
-  lock and fast user switching.
+- **Folders**: add, rename and delete folders from Settings.
+- **Bitwarden cloud (US and EU), self-hosted Bitwarden and Vaultwarden**, multiple accounts.
+- **Touch ID unlock** after the first master-password unlock. Auto-lock on idle, sleep, screen
+  lock and fast user switching, plus an optional **lock when closed** that locks the moment the
+  popover closes.
 - **Clipboard hygiene**: copies are marked concealed/transient so clipboard managers skip them,
-  and cleared after a delay (only if the clipboard still holds the copied value).
+  and cleared after a delay (only if the clipboard still holds the copied value). The popover
+  stays open after a copy unless you turn on *Close after copying*.
 - **Import / export**: Bitwarden `.json` (unencrypted) both ways, so you can move a vault in from the
   browser extension or take a backup out. Import skips items already in the vault (running it twice is
   harmless), keeps folders and password history, and reports what it skipped. Export asks for the master
   password first. Passkeys are not carried over; encrypted/CSV exports are not supported yet.
-- **Settings tab**: Touch ID, auto-lock, clipboard timeout, global hotkey recorder, start at login,
-  website icons, organization items, language and log out.
+- **Settings**: Touch ID, auto-lock, lock when closed, clipboard timeout, global hotkey recorder,
+  start at login, close after copying, website icons, organization items, language, import/export,
+  and **About** with the version, the server version and *Check for updates*.
 - Item detail with hidden-field masking, English and Bahasa Indonesia, light and dark.
 
 Keyboard: global hotkey (default `⌃⌥⌘V`), `↑↓` select, `↩` copy password (code in 2FA, value in
@@ -51,12 +71,28 @@ Generator), `⌘C` username, `⌘T` code, `→`/`←` open/close detail, `⌘N` 
 `⌘S` save, `⌘R` regenerate, `⌘1`-`⌘4` tabs, `⌘L` lock, `Esc` back/close.
 
 Not included: autofill into browsers or other apps, attachments, Sends, vault health, organization
-and collection management.
+and collection management, passkeys.
 
-## Requirements
+<details>
+<summary><strong>More screenshots</strong></summary>
 
-- macOS 14 or later. Nothing else: **no `bw` CLI and no Node.** VaultBar talks to the Bitwarden API
-  directly, the same way the browser extension does.
+<p align="center">
+  <img src="Resources/screenshots/list.webp" alt="Vault list" width="300">
+  <img src="Resources/screenshots/twofa.webp" alt="2FA codes with the scan button" width="300">
+  <img src="Resources/screenshots/editor.webp" alt="Item editor" width="300">
+</p>
+<p align="center">
+  <img src="Resources/screenshots/generator.webp" alt="Password generator" width="300">
+  <img src="Resources/screenshots/settings-tab.webp" alt="Settings" width="300">
+  <img src="Resources/screenshots/folders.webp" alt="Folders" width="300">
+</p>
+<p align="center">
+  <img src="Resources/screenshots/list-dark.webp" alt="Vault list, dark" width="300">
+  <img src="Resources/screenshots/accounts-dark.webp" alt="Accounts, dark" width="300">
+  <img src="Resources/screenshots/about.webp" alt="About" width="300">
+</p>
+
+</details>
 
 ## Install
 
@@ -85,10 +121,16 @@ the authenticator, e-mail or YubiKey code (or the new-device code Bitwarden e-ma
 ## Build from source
 
 ```sh
-swift test                      # unit tests (crypto vectors, generator, TOTP, decryptor…)
+swift test                      # unit tests (crypto vectors, generator, TOTP, QR, decryptor…)
 ./Scripts/run_dev.sh --demo     # run with the fake demo vault
 ./Scripts/package_release.sh    # dist/VaultBar.app + dist/VaultBar.dmg + sha256
+./Scripts/screenshots.sh        # regenerate the README images from the demo vault (needs cwebp)
 ```
+
+Builds are ad-hoc signed, which makes macOS ask for the login keychain password again after every
+rebuild. For local work set `SIGN_IDENTITY` to a certificate from `security find-identity -v -p codesigning`
+(for example `SIGN_IDENTITY="Apple Development: Your Name (TEAMID)" ./Scripts/package_release.sh`) and the
+prompt appears only once.
 
 End-to-end tests against a real Vaultwarden (needs a server you can throw away):
 
@@ -99,7 +141,8 @@ VW_URL=http://127.0.0.1:18222 swift test -c release --filter NativeE2ETests
 ```
 
 `--demo` runs a fake vault, `--selftest` drives the app's own state machine in demo mode, and
-`--snapshot-dir <dir>` renders the README screenshots from the demo vault.
+`--snapshot-dir <dir>` renders the README screenshots from the demo vault. These three modes use a
+separate, throwaway preferences store, so they never touch your real settings.
 
 ## How it works
 
@@ -108,12 +151,17 @@ VW_URL=http://127.0.0.1:18222 swift test -c release --filter NativeE2ETests
   pair that unwraps your vault key. Items are AES-256-CBC with an HMAC checked before decrypting.
   Organization items unwrap their keys with RSA-OAEP. Only Apple's CommonCrypto, CryptoKit and
   Security frameworks are used for the primitives.
-- **Writes** encrypt each field and merge into the item's original JSON, so password history,
-  attachments and passkeys survive an edit. Delete moves to the trash.
+- **Writes** merge your edits into the item's decrypted JSON, encrypt each field, and send only the
+  fields the server's cipher API accepts (the legacy `data` blob the cloud returns is never sent
+  back, or the cloud would keep the old values). After every save the item is read back from the
+  server, and a banner names any field the server did not apply. Delete moves to the trash.
 - **Storage**: per account, `~/Library/Application Support/VaultBar/accounts/<id>/` holds the
   encrypted vault cache (ciphertext only, mode 0600) and the key as the server stores it, so
   unlocking works offline. The refresh token is in the Keychain.
-- TOTP is computed in the app from the decrypted `login.totp`.
+- TOTP is computed in the app from the decrypted `login.totp`. A QR code is decoded on this Mac
+  (Vision framework); a screen capture lives in a temp file only until it has been read.
+- **Updates**: *Check for updates* makes one anonymous request to GitHub's releases API. Nothing
+  about you or your vault is sent, and nothing is installed automatically.
 
 ## Security and threat model
 
