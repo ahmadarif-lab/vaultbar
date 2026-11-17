@@ -17,6 +17,9 @@
   <a href="https://github.com/ahmadarif-lab/vaultbar/releases/latest">
     <img src="https://img.shields.io/github/v/release/ahmadarif-lab/vaultbar?label=Download&style=flat-square&color=2f81f7&cacheSeconds=300" alt="Download the latest release">
   </a>
+  <a href="https://github.com/ahmadarif-lab/vaultbar/actions/workflows/ci.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/ahmadarif-lab/vaultbar/ci.yml?branch=main&label=CI&style=flat-square" alt="CI status">
+  </a>
   <img src="https://img.shields.io/badge/macOS-14%2B-lightgrey?style=flat-square" alt="macOS 14 or later">
   <img src="https://img.shields.io/github/license/ahmadarif-lab/vaultbar?style=flat-square" alt="MIT license">
 </p>
@@ -146,6 +149,11 @@ swift test                      # unit tests (crypto vectors, generator, TOTP, Q
 ./Scripts/package_release.sh    # dist/VaultBar.app + dist/VaultBar.dmg + sha256
 ./Scripts/screenshots.sh        # regenerate the README images from the demo vault (needs cwebp)
 ```
+
+GitHub Actions builds and tests every push (`.github/workflows/ci.yml`). To release: bump the version in
+`Resources/Info.plist`, add a `## x.y.z` section to `CHANGELOG.md`, then push a tag `vx.y.z`; the
+`Release` workflow builds the universal app, the DMG and the PKG and publishes the GitHub release.
+Afterwards copy the DMG's sha256 (shown in the run summary) into the tap's `Casks/vaultbar.rb`.
 
 Builds are ad-hoc signed, which makes macOS ask for the login keychain password again after every
 rebuild. For local work set `SIGN_IDENTITY` to a certificate from `security find-identity -v -p codesigning`
