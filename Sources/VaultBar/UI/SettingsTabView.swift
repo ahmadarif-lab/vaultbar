@@ -164,6 +164,7 @@ struct SettingsTabView: View {
                     }
                     vaultGroup
                     securityGroup
+                    autoTypeGroup
                     generalGroup
                     dataGroup
                     aboutGroup
@@ -234,6 +235,20 @@ struct SettingsTabView: View {
                 (10, t("settings.seconds", 10)), (30, t("settings.seconds", 30)), (60, t("settings.seconds", 60)),
                 (120, t("settings.seconds", 120)), (0, t("settings.never")),
             ], selection: $settings.clipboardSeconds, divider: false)
+        }
+    }
+
+    private var autoTypeGroup: some View {
+        SettingsGroup(title: t("autotype.title")) {
+            Text(t("autotype.note")).font(.system(size: 12)).foregroundStyle(Theme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading).padding(12)
+            Rectangle().fill(Theme.stroke).frame(height: 1)
+            ToggleRow(title: t("autotype.enter"), isOn: $settings.autoTypeEnter)
+            ActionRow(icon: AutoType.isTrusted ? "checkmark.shield" : "exclamationmark.shield", title: t("autotype.access"),
+                      detail: AutoType.isTrusted ? t("autotype.allowed") : t("autotype.notAllowed"), divider: false) {
+                if AutoType.isTrusted { AutoType.openPrivacySettings() } else { AutoType.promptForAccess() }
+            }
         }
     }
 

@@ -66,6 +66,8 @@ final class AppSettings {
     @ObservationIgnored var onHotkeyChanged: (() -> Void)?
     var appearance: AppearanceChoice { didSet { defaults.set(appearance.rawValue, forKey: "appearance"); onAppearanceChanged?() } }
     @ObservationIgnored var onAppearanceChanged: (() -> Void)?
+    /// Auto-type presses Return at the end of a login, password or code.
+    var autoTypeEnter: Bool { didSet { defaults.set(autoTypeEnter, forKey: "autoTypeEnter") } }
     /// Lock the vault the moment the popover closes. Off by default.
     var lockOnClose: Bool { didSet { defaults.set(lockOnClose, forKey: "lockOnClose") } }
     /// Close the popover right after a copy (so ⌘V lands in the previous app). Off by default.
@@ -96,6 +98,7 @@ final class AppSettings {
         hotkeyKeyCode = UInt32(d.object(forKey: "hotkeyKeyCode") as? Int ?? Int(Self.defaultHotkeyKeyCode))
         hotkeyModifiers = UInt32(d.object(forKey: "hotkeyModifiers") as? Int ?? Int(Self.defaultHotkeyModifiers))
         appearance = AppearanceChoice(rawValue: d.string(forKey: "appearance") ?? "") ?? .system
+        autoTypeEnter = d.bool(forKey: "autoTypeEnter")
         closeAfterCopy = d.bool(forKey: "closeAfterCopy")
         lockOnClose = d.bool(forKey: "lockOnClose")
         showFavicons = d.bool(forKey: "showFavicons")

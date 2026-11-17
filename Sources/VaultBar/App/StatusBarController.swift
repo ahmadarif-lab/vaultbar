@@ -172,6 +172,10 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         let cursorAtEnd = editor.map { $0.selectedRange.length == 0 && $0.selectedRange.location >= ($0.string as NSString).length } ?? true
         let listTab = state.tab == .vault || state.tab == .authenticator
 
+        if flags == .command, keyCode == 36 || keyCode == 76 { // ⌘↩: auto-type the login
+            if state.tab == .vault, let e = state.targetEntry { state.autoType(e, mode: .login) }
+            return true
+        }
         if flags == .command {
             switch key {
             case "1": state.tab = .vault; return true
@@ -180,6 +184,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             case "4": state.tab = .settings; return true
             case "n": if state.tab == .vault { state.beginAdd() }; return true
             case "e": if state.tab == .vault, let e = state.targetEntry { state.beginEdit(e) }; return true
+            case "d": if state.tab == .vault, let e = state.targetEntry { Task { await state.toggleFavorite(e) } }; return true
             case "r": if state.tab == .generator { state.generator.regenerate() }; return true
             case "c":
                 if let editor, editor.selectedRange.length > 0 { return false } // let real text copy work

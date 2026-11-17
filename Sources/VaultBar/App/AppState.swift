@@ -28,6 +28,7 @@ final class AppState {
     var folderFilter: FolderFilter = .all { didSet { selectFirst() } }
     var typeFilter: ItemType? { didSet { selectFirst() } }
     var orgFilter: OrgFilter = .all { didSet { selectFirst() } }
+    var favoritesOnly = false { didSet { selectFirst() } }
     var selectedRowID: String?
     var detailEntryID: String?
 
@@ -369,6 +370,7 @@ final class AppState {
         entries.filter { e in
             if settings.hideOrgItems, e.item.organizationId != nil { return false }
             if let typeFilter, e.type != typeFilter { return false }
+            if favoritesOnly, !e.isFavorite { return false }
             switch folderFilter {
             case .all: break
             case .none: if e.item.folderId != nil { return false }
@@ -400,6 +402,7 @@ final class AppState {
         }
         var out: [Row] = []
         for e in base where e.isFavorite { out.append(Row(id: "favorites-\(e.id)", section: .favorites, entry: e)) }
+        if favoritesOnly { return out } // the favorites are the whole list; no duplicate "All items"
         for e in base { out.append(Row(id: "all-\(e.id)", section: .all, entry: e)) }
         return out
     }
@@ -426,12 +429,12 @@ final class AppState {
         }
     }
 
-    var hasActiveFilters: Bool { folderFilter != .all || typeFilter != nil || orgFilter != .all }
+    var hasActiveFilters: Bool { folderFilter != .all || typeFilter != nil || orgFilter != .all || favoritesOnly }
 
     var showsOrgFilter: Bool { !organizations.isEmpty && !settings.hideOrgItems }
 
     func clearFilters() {
-        folderFilter = .all; typeFilter = nil; orgFilter = .all; query = ""
+        folderFilter = .all; typeFilter = nil; orgFilter = .all; favoritesOnly = false; query = ""
     }
 
     // MARK: Selection and keyboard actions
@@ -487,6 +490,25 @@ final class AppState {
     func copyUsername(_ e: VaultEntry) {
         guard let u = e.username else { showToast?(t("toast.noUsername")); return }
         finishCopy(u)
+    }
+
+    /// Types the item's credentials into the app that was in front before the popover (like the extension's autofill,
+    /// but as keystrokes). The secrets are read now: closing the popover may lock the vault before the typing starts.
+    func autoType(_ e: VaultEntry, mode: AutoTypeMode) {
+        noteActivity()
+        guard e.type == .login else { return }
+        guard AutoType.isTrusted else {
+            AutoType.promptForAccess()
+            showToast?(t("autotype.needsAccess"))
+            return
+        }
+        let steps = AutoTypePlan.steps(username: e.username, password: e.password, code: e.totp?.code(),
+                                       mode: mode, pressEnter: settings.autoTypeEnter)
+        guard !steps.isEmpty else { showToast?(t(mode == .code ? "toast.noCode" : "autotype.nothing")); return }
+        closePopover?()
+        Task { @MainActor in
+            if !(await AutoType.typeIntoFrontApp(steps)) { showToast?(t("autotype.noTarget")) }
+        }
     }
 
     func copyCode(_ e: VaultEntry) {
@@ -734,6 +756,25 @@ final class AppState {
         if draft.name.trimmingCharacters(in: .whitespaces).isEmpty, let issuer = totp.issuer { draft.name = issuer; changed = true }
         if draft.username.isEmpty, let account = totp.account { draft.username = account; changed = true }
         if changed { editor = draft }
+    }
+
+    /// Adds or removes the item from the favorites (saves it like any other edit).
+    func toggleFavorite(_ e: VaultEntry) async {
+        guard let session else { return }
+        noteActivity()
+        let current = entries.first { $0.id == e.id } ?? e // the freshest copy, in case `e` is a stale row
+        var draft = ItemDraft(item: current.item)
+        draft.favorite.toggle()
+        let nowFavorite = draft.favorite
+        do {
+            try await session.save(draft)
+            await loadVault()
+            showToast?(t(nowFavorite ? "toast.favoriteAdded" : "toast.favoriteRemoved"))
+            Task { await sync(silent: true) }
+        } catch {
+            await loadVault()
+            showToast?(describe(error))
+        }
     }
 
     func beginEdit(_ e: VaultEntry) {

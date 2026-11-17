@@ -35,7 +35,7 @@ Everything, including first-run login and all settings, lives in the popover: no
 Light or dark follows macOS by default, or pick one in Settings.
 
 - **Vault**: fuzzy search (name, username, website, folder), folder / type / organization filters,
-  favorites, and per-item **copy** (a small menu offers username, password or code when there is a
+  **favorites** (star from the ⋮ menu, the detail view or `⌘D`; *Favorites only* in the filter menu), and per-item **copy** (a small menu offers username, password or code when there is a
   choice) plus a ⋮ menu with **view, edit, clone, delete and open**. Delete moves to the trash,
   with a confirmation. **Add** creates logins, cards, identities and notes, including custom fields
   and an authenticator key. Edits keep password history, passkeys and per-item keys intact.
@@ -43,6 +43,12 @@ Light or dark follows macOS by default, or pick one in Settings.
   tested against the RFC vectors): base32 secrets, `otpauth://` URIs (SHA1/256/512, 6 or 8
   digits, any period) and `steam://` keys. Countdown ring; click to copy. Works on the free plan;
   the key is your own data.
+- **Auto-type** (like the extension's autofill, as keystrokes): pick *Auto-type* in an item's ⋮ menu
+  or press `⌘↩` on the selected item, and VaultBar closes, hands focus back to the app you were in and
+  types the username, Tab, then the password (or just one of them, or the 2FA code) into the field that
+  has focus. It works in any browser or app and nothing goes through the clipboard. Click the username
+  field first; an optional setting presses Return afterwards. It needs the macOS **Accessibility**
+  permission, which the app asks for the first time. It does not detect login forms or match websites.
 - **Scan a setup QR code**: when a site shows a QR code to register 2FA, read it from the screen
   (drag a box around it), from an image file, or from a screenshot on the clipboard. The key, name
   and username are filled in for you. Google Authenticator's bulk export code is not supported.
@@ -61,16 +67,16 @@ Light or dark follows macOS by default, or pick one in Settings.
   browser extension or take a backup out. Import skips items already in the vault (running it twice is
   harmless), keeps folders and password history, and reports what it skipped. Export asks for the master
   password first. Passkeys are not carried over; encrypted/CSV exports are not supported yet.
-- **Settings**: theme (System, Light or Dark), Touch ID, auto-lock, lock when closed, clipboard timeout, global hotkey recorder,
+- **Settings**: theme (System, Light or Dark), Touch ID, auto-type options, auto-lock, lock when closed, clipboard timeout, global hotkey recorder,
   start at login, close after copying, website icons, organization items, language, import/export,
   and **About** with the version, the server version and *Check for updates*.
 - Item detail with hidden-field masking, English and Bahasa Indonesia, light and dark.
 
 Keyboard: global hotkey (default `⌃⌥⌘V`), `↑↓` select, `↩` copy password (code in 2FA, value in
-Generator), `⌘C` username, `⌘T` code, `→`/`←` open/close detail, `⌘N` new item, `⌘E` edit,
+Generator), `⌘↩` auto-type the login, `⌘C` username, `⌘T` code, `→`/`←` open/close detail, `⌘N` new item, `⌘E` edit,
 `⌘S` save, `⌘R` regenerate, `⌘1`-`⌘4` tabs, `⌘L` lock, `Esc` back/close.
 
-Not included: autofill into browsers or other apps, attachments, Sends, vault health, organization
+Not included: a browser extension (so no form detection or website matching), attachments, Sends, vault health, organization
 and collection management, passkeys.
 
 <details>
@@ -184,6 +190,10 @@ separate, throwaway preferences store, so they never touch your real settings.
 
 **What it does not protect against**
 
+- Auto-type sends ordinary keystrokes, so anything that records keystrokes (a keylogger, screen
+  sharing with input capture) sees them, and a field that does not have focus gets nothing or the wrong
+  field gets it. Check where the cursor is before you use it. The Accessibility permission lets VaultBar
+  post keystrokes only; it does not read other apps' content.
 - Malware running as your user or a privileged attacker who can read this process's memory while
   the vault is unlocked. Swift strings can't be reliably zeroed, so the master password may
   linger in freed memory after unlocking.

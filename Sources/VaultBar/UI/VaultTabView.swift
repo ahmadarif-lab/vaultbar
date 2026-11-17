@@ -67,13 +67,16 @@ struct VaultTabView: View {
                     ForEach(state.organizations) { o in Button(o.name) { state.orgFilter = .org(o.id) } }
                     Divider()
                 }
+                Toggle(t("filter.favoritesOnly"), isOn: Binding(get: { state.favoritesOnly }, set: { state.favoritesOnly = $0 }))
+                Divider()
                 Button(t("filter.allFolders")) { state.clearFilters() }
             } label: {
+                let active = state.orgFilter != .all || state.favoritesOnly
                 Image(systemName: "line.3.horizontal.decrease")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(state.orgFilter != .all ? Theme.accent : Theme.textSecondary)
+                    .foregroundStyle(active ? Theme.accent : Theme.textSecondary)
                     .frame(width: 34, height: 34)
-                    .background(RoundedRectangle(cornerRadius: 9).fill(state.orgFilter != .all ? Theme.accentSoft : Theme.surface))
+                    .background(RoundedRectangle(cornerRadius: 9).fill(active ? Theme.accentSoft : Theme.surface))
                     .overlay(RoundedRectangle(cornerRadius: 9).stroke(Theme.stroke))
             }
             .menuStyle(.button).buttonStyle(.plain).handCursor().menuIndicator(.hidden).fixedSize()
@@ -181,7 +184,13 @@ struct ItemRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 5) {
                     Text(entry.name).font(.system(size: 13.5, weight: .semibold)).foregroundStyle(Theme.textPrimary).lineLimit(1)
-                    if entry.isFavorite { Image(systemName: "star.fill").font(.system(size: 9)).foregroundStyle(Theme.warning) }
+                    if entry.isFavorite {
+                        Button { Task { await state.toggleFavorite(entry) } } label: {
+                            Image(systemName: "star.fill").font(.system(size: 9)).foregroundStyle(Theme.warning)
+                                .padding(3).contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain).handCursor().help(t("menu.unfavorite"))
+                    }
                     if let org = entry.organizationName {
                         Text(org).font(.system(size: 9.5, weight: .semibold)).foregroundStyle(Theme.accent)
                             .padding(.horizontal, 5).padding(.vertical, 1)

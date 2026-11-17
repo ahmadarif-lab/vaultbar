@@ -18,6 +18,11 @@ struct ItemDetailView: View {
                 }
                 .buttonStyle(.plain).handCursor()
                 Spacer()
+                if entry.type == .login, entry.username != nil || entry.password != nil {
+                    IconButton(systemName: "keyboard", help: t("autotype.login")) { state.autoType(entry, mode: .login) }
+                }
+                IconButton(systemName: entry.isFavorite ? "star.fill" : "star", help: t(entry.isFavorite ? "menu.unfavorite" : "menu.favorite"),
+                           tint: entry.isFavorite ? Theme.warning : Theme.textSecondary) { Task { await state.toggleFavorite(entry) } }
                 IconButton(systemName: "pencil", help: t("menu.edit")) { state.beginEdit(entry) }
                 MoreMenu(state: state, entry: entry, includeView: false)
             }

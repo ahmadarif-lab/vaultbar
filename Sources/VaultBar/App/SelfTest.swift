@@ -85,6 +85,19 @@ enum SelfTest {
         }
         check(state.entries.count == start, "back to the original item count")
 
+        // Favorites: toggle from the menu action, filter, toggle back
+        state.tab = .vault
+        if let plain = state.entries.first(where: { !$0.isFavorite && $0.item.organizationId == nil }) {
+            let favoritesBefore = state.entries.filter(\.isFavorite).count
+            await state.toggleFavorite(plain)
+            check(state.entries.first { $0.id == plain.id }?.isFavorite == true && state.entries.filter(\.isFavorite).count == favoritesBefore + 1, "an item can be added to the favorites")
+            state.favoritesOnly = true
+            check(!state.rows.isEmpty && state.rows.allSatisfy { $0.entry.isFavorite && $0.section == .favorites }, "'Favorites only' lists just the favorites")
+            state.favoritesOnly = false
+            await state.toggleFavorite(plain)
+            check(state.entries.first { $0.id == plain.id }?.isFavorite == false, "an item can be removed from the favorites")
+        }
+
         // Folders: add, reject duplicates, rename, delete
         let folderCount = state.folders.count
         let folderAdded = await state.addFolder("Selftest folder")

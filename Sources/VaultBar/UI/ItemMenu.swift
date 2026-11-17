@@ -30,8 +30,21 @@ enum ItemMenu {
         }
         if includeView { add(t("menu.view"), "eye") { state.openDetail(entry) } }
         add(t("menu.edit"), "pencil") { state.beginEdit(entry) }
+        add(t(entry.isFavorite ? "menu.unfavorite" : "menu.favorite"), entry.isFavorite ? "star.slash" : "star") { Task { await state.toggleFavorite(entry) } }
         menu.addItem(.separator())
         for option in copyOptions(state: state, entry: entry) { add(option.title, option.symbol, option.run) }
+        if entry.type == .login, entry.username != nil || entry.password != nil {
+            let item = NSMenuItem(title: t("autotype.menu"), action: nil, keyEquivalent: "")
+            item.image = NSImage(systemSymbolName: "keyboard", accessibilityDescription: nil)
+            let sub = NSMenu()
+            sub.autoenablesItems = false
+            sub.addItem(ClosureMenuItem(title: t("autotype.login"), symbol: "return") { state.autoType(entry, mode: .login) })
+            if entry.username != nil { sub.addItem(ClosureMenuItem(title: t("autotype.username"), symbol: "person") { state.autoType(entry, mode: .username) }) }
+            if entry.password != nil { sub.addItem(ClosureMenuItem(title: t("autotype.password"), symbol: "key") { state.autoType(entry, mode: .password) }) }
+            if entry.totp != nil { sub.addItem(ClosureMenuItem(title: t("autotype.code"), symbol: "clock") { state.autoType(entry, mode: .code) }) }
+            item.submenu = sub
+            menu.addItem(item)
+        }
         if entry.type == .login, let url = entry.uris.lazy.compactMap(openableURL).first {
             add(t("menu.open"), "arrow.up.right.square") { NSWorkspace.shared.open(url) }
         }
