@@ -91,13 +91,13 @@ struct ItemEditorView: View {
     private var header: some View {
         HStack {
             Button(t("edit.cancel")) { state.cancelEditor() }
-                .buttonStyle(.plain).font(.system(size: 13.5, weight: .medium)).foregroundStyle(Theme.accent)
+                .buttonStyle(.plain).handCursor().font(.system(size: 13.5, weight: .medium)).foregroundStyle(Theme.accent)
             Spacer()
             Text(draft.isNew ? t("edit.newTitle") : t("edit.editTitle"))
                 .font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.textPrimary)
             Spacer()
             Button(state.isSaving ? t("edit.saving") : t("edit.save")) { Task { await state.saveEditor() } }
-                .buttonStyle(CompactPrimaryStyle()).disabled(state.isSaving)
+                .buttonStyle(CompactPrimaryStyle()).handCursor().disabled(state.isSaving)
         }
         .padding(.horizontal, 14).padding(.vertical, 12)
     }
@@ -155,7 +155,7 @@ struct ItemEditorView: View {
             } label: {
                 SelectChip(icon: "folder", title: state.folders.first { $0.id == draft.folderId }?.name ?? t("filter.noFolder"), active: false)
             }
-            .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden)
+            .menuStyle(.button).buttonStyle(.plain).handCursor().menuIndicator(.hidden)
         }
     }
 
@@ -174,7 +174,7 @@ struct ItemEditorView: View {
             }
             Button { state.editor?.uris.append("") } label: {
                 Label(t("edit.addWebsite"), systemImage: "plus").font(.system(size: 12.5, weight: .medium))
-            }.buttonStyle(.plain).foregroundStyle(Theme.accent)
+            }.buttonStyle(.plain).handCursor().foregroundStyle(Theme.accent)
         }
     }
 
@@ -237,7 +237,7 @@ struct ItemEditorView: View {
             }
             Button { state.editor?.fields.append(CustomField(name: "", value: "", type: .text)) } label: {
                 Label(t("edit.addField"), systemImage: "plus").font(.system(size: 12.5, weight: .medium))
-            }.buttonStyle(.plain).foregroundStyle(Theme.accent)
+            }.buttonStyle(.plain).handCursor().foregroundStyle(Theme.accent)
         }
     }
 

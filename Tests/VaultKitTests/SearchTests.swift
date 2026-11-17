@@ -27,6 +27,19 @@ final class SearchTests: XCTestCase {
         XCTAssertEqual(ranked("gthb"), ["GitHub"])
     }
 
+    func testSubsequenceOnlyOnName() {
+        // Letters of "instagram" occur in order inside a long URL and a username, but those must not match.
+        let snapshot = VaultSnapshot(items: [
+            VaultItem(id: "1", type: .login, name: "Google", login: LoginData(username: "isabel.nathan.stargazer.m@example.com", password: "x", totp: nil, uris: [LoginURI(uri: "https://accounts.google.com/signin/v2/identifier?continue=https%3A%2F%2Fmail.example.com%2Fmail%2Fu%2F0%2F&service=mail&sacu=1&rip=1")])),
+            VaultItem(id: "2", type: .login, name: "Instagram"),
+            VaultItem(id: "3", type: .login, name: "Example Login", login: LoginData(username: nil, password: nil, totp: nil, uris: [LoginURI(uri: "https://www.instagram.com/accounts/login")])),
+        ])
+        let r = VaultEntry.build(from: snapshot).compactMap { e in e.score(for: "instagram").map { _ in e.name } }
+        XCTAssertEqual(Set(r), ["Instagram", "Example Login"])
+        XCTAssertNotNil(VaultEntry.build(from: snapshot).first { $0.name == "Instagram" }?.score(for: "insta"))
+        XCTAssertNil(VaultEntry.build(from: snapshot).first { $0.name == "Google" }?.score(for: "isg"))
+    }
+
     func testDiacriticsAndCase() {
         XCTAssertEqual(ranked("CAFE"), ["Café Bank"])
     }

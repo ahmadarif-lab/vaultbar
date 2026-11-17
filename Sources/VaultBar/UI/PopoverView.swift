@@ -73,9 +73,9 @@ struct DeleteConfirm: View {
                 Text(t("delete.body", entry.name)).font(.system(size: 12.5)).foregroundStyle(Theme.textSecondary)
                     .multilineTextAlignment(.center)
                 HStack(spacing: 8) {
-                    Button(t("edit.cancel")) { state.cancelDelete() }.buttonStyle(SecondaryButtonStyle())
+                    Button(t("edit.cancel")) { state.cancelDelete() }.buttonStyle(SecondaryButtonStyle()).handCursor()
                     Button(t("delete.confirm")) { Task { await state.confirmDelete() } }
-                        .buttonStyle(DangerButtonStyle())
+                        .buttonStyle(DangerButtonStyle()).handCursor()
                 }
             }
             .padding(20)

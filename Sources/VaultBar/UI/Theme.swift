@@ -62,7 +62,7 @@ struct IconButton: View {
                 .background(RoundedRectangle(cornerRadius: 7).fill(hovering ? Theme.hover : .clear))
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.plain).handCursor()
         .help(help)
         .onHover { hovering = $0 }
     }
@@ -126,7 +126,7 @@ struct ThemedField: View {
                         .font(.system(size: 13)).foregroundStyle(Theme.textSecondary)
                         .frame(width: 26, height: 26).contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.plain).handCursor()
                 .help(revealed ? t("detail.hide") : t("detail.reveal"))
             }
         }
@@ -135,4 +135,22 @@ struct ThemedField: View {
         .background(RoundedRectangle(cornerRadius: 9).fill(Theme.surface))
         .overlay(RoundedRectangle(cornerRadius: 9).stroke(focused ? Theme.accent : Theme.stroke, lineWidth: focused ? 1.5 : 1))
     }
+}
+
+
+/// Pointing-hand cursor while the mouse is over a clickable control.
+private struct HandCursor: ViewModifier {
+    @State private var inside = false
+    func body(content: Content) -> some View {
+        content
+            .onHover { hovering in
+                if hovering && !inside { NSCursor.pointingHand.push(); inside = true }
+                else if !hovering && inside { NSCursor.pop(); inside = false }
+            }
+            .onDisappear { if inside { NSCursor.pop(); inside = false } }
+    }
+}
+
+extension View {
+    func handCursor() -> some View { modifier(HandCursor()) }
 }

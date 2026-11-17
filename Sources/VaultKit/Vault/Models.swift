@@ -182,7 +182,10 @@ public struct VaultEntry: Identifiable, Sendable {
     /// Weighted fuzzy score, nil when some query token matches nothing.
     public func score(for query: String) -> Int? {
         Fuzzy.score(query: query, fields: [
-            (searchName, 3), (searchUser, 2), (searchURIs, 2), (searchFolder, 1),
+            .init(searchName, weight: 3, allowsSubsequence: true),
+            .init(searchUser, weight: 2),
+            .init(searchURIs, weight: 2),
+            .init(searchFolder, weight: 1),
         ])
     }
 

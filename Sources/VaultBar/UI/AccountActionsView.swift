@@ -12,7 +12,7 @@ struct AccountActionsView: View {
                 Button { state.showAccounts = false; state.confirmLogoutAccount = false } label: {
                     Image(systemName: "chevron.left").font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.textPrimary)
                         .frame(width: 26, height: 26).contentShape(Rectangle())
-                }.buttonStyle(.plain)
+                }.buttonStyle(.plain).handCursor()
                 Text(t("acct.title")).font(.system(size: 18, weight: .semibold)).foregroundStyle(Theme.textPrimary)
                 Spacer()
                 AccountBadge(initials: state.accountInitials)
@@ -28,6 +28,7 @@ struct AccountActionsView: View {
                     Text(t("acct.available")).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.textPrimary).padding(.top, 6)
                     ForEach(others) { row in
                         accountCard(row, trailing: AnyView(Image(systemName: "lock").foregroundStyle(Theme.textSecondary)))
+                            .handCursor()
                             .onTapGesture { Task { await state.switchAccount(to: row.id) } }
                     }
                     if others.isEmpty {
@@ -43,8 +44,8 @@ struct AccountActionsView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text(t("settings.logoutConfirm")).font(.system(size: 12.5)).foregroundStyle(Theme.textPrimary)
                             HStack(spacing: 8) {
-                                Button(t("edit.cancel")) { state.confirmLogoutAccount = false }.buttonStyle(SecondaryButtonStyle())
-                                Button(t("settings.logout")) { Task { await state.logout() } }.buttonStyle(DangerButtonStyle())
+                                Button(t("edit.cancel")) { state.confirmLogoutAccount = false }.buttonStyle(SecondaryButtonStyle()).handCursor()
+                                Button(t("settings.logout")) { Task { await state.logout() } }.buttonStyle(DangerButtonStyle()).handCursor()
                             }
                         }
                         .padding(12).frame(maxWidth: .infinity, alignment: .leading)
@@ -93,6 +94,6 @@ struct AccountActionsView: View {
             .overlay(RoundedRectangle(cornerRadius: 9).stroke(Theme.stroke))
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.plain).handCursor()
     }
 }

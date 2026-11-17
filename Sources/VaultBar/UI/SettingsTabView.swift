@@ -89,7 +89,7 @@ struct PickerRow<Value: Hashable>: View {
                     .background(RoundedRectangle(cornerRadius: 8).fill(Theme.background))
                     .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.stroke))
                 }
-                .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
+                .menuStyle(.button).buttonStyle(.plain).handCursor().menuIndicator(.hidden).fixedSize()
             }
         }
     }
@@ -115,7 +115,7 @@ struct ActionRow: View {
                 .frame(minHeight: 42)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.plain).handCursor()
         }
     }
 }
@@ -186,8 +186,8 @@ struct SettingsTabView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(t("settings.logoutConfirm")).font(.system(size: 12.5)).foregroundStyle(Theme.textPrimary)
                     HStack(spacing: 8) {
-                        Button(t("edit.cancel")) { confirmLogout = false }.buttonStyle(SecondaryButtonStyle())
-                        Button(t("settings.logout")) { Task { await state.logout() } }.buttonStyle(DangerButtonStyle())
+                        Button(t("edit.cancel")) { confirmLogout = false }.buttonStyle(SecondaryButtonStyle()).handCursor()
+                        Button(t("settings.logout")) { Task { await state.logout() } }.buttonStyle(DangerButtonStyle()).handCursor()
                     }
                 }
                 .padding(12)
@@ -216,7 +216,7 @@ struct SettingsTabView: View {
                             HStack(spacing: 8) {
                                 ThemedField(placeholder: t("settings.touchIDEnterPassword"), text: $touchPassword, secure: true) { Task { await submitTouchID() } }
                                 Button(t("settings.touchIDEnable")) { Task { await submitTouchID() } }
-                                    .buttonStyle(CompactPrimaryStyle()).disabled(touchPassword.isEmpty)
+                                    .buttonStyle(CompactPrimaryStyle()).handCursor().disabled(touchPassword.isEmpty)
                             }
                             if let touchError { Text(touchError).font(.system(size: 11.5)).foregroundStyle(Theme.danger) }
                         }
@@ -263,7 +263,7 @@ struct SettingsTabView: View {
                         .background(RoundedRectangle(cornerRadius: 8).fill(state.isRecordingHotkey ? Theme.accentSoft : Theme.background))
                         .overlay(RoundedRectangle(cornerRadius: 8).stroke(state.isRecordingHotkey ? Theme.accent : Theme.stroke))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.plain).handCursor()
                 if settings.hotkeyEnabled && !state.isRecordingHotkey {
                     IconButton(systemName: "xmark.circle", help: t("settings.hotkeyOff")) { settings.hotkeyEnabled = false }
                 }
@@ -290,8 +290,8 @@ struct SettingsTabView: View {
                         Text(t("data.exportWarning")).font(.system(size: 11.5)).foregroundStyle(Theme.textSecondary).fixedSize(horizontal: false, vertical: true)
                         HStack(spacing: 8) {
                             ThemedField(placeholder: t("data.exportPassword"), text: $exportPassword, secure: true) { Task { await runExport() } }
-                            Button(t("data.exportConfirm")) { Task { await runExport() } }.buttonStyle(CompactPrimaryStyle()).disabled(exportPassword.isEmpty)
-                            Button(t("edit.cancel")) { exporting = false; exportPassword = ""; exportError = nil }.buttonStyle(SecondaryButtonStyle())
+                            Button(t("data.exportConfirm")) { Task { await runExport() } }.buttonStyle(CompactPrimaryStyle()).handCursor().disabled(exportPassword.isEmpty)
+                            Button(t("edit.cancel")) { exporting = false; exportPassword = ""; exportError = nil }.buttonStyle(SecondaryButtonStyle()).handCursor()
                         }
                         if let exportError { Text(exportError).font(.system(size: 11.5)).foregroundStyle(Theme.danger) }
                     }
@@ -310,7 +310,7 @@ struct SettingsTabView: View {
                     Image(systemName: "checkmark.circle.fill").foregroundStyle(Color(nsColor: NSColor(hex: 0x2F9E6B)))
                     Text(t("data.importDone", r.added)).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.textPrimary)
                     Spacer()
-                    Button(t("data.dismiss")) { state.importReport = nil }.buttonStyle(.plain).font(.system(size: 11.5)).foregroundStyle(Theme.accent)
+                    Button(t("data.dismiss")) { state.importReport = nil }.buttonStyle(.plain).handCursor().font(.system(size: 11.5)).foregroundStyle(Theme.accent)
                 }
                 if r.foldersCreated > 0 { detail(t("data.importFolders", r.foldersCreated)) }
                 if r.duplicates > 0 { detail(t("data.importDuplicates", r.duplicates)) }

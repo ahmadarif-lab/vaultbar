@@ -3,10 +3,21 @@ import Foundation
 /// Small, dependency-free fuzzy matcher. Every whitespace-separated query
 /// token has to match somewhere; a token matches a field as an exact
 /// substring (best, more so at the start of the field or of a word) or, failing
-/// that, as an in-order subsequence ("gthb" finds "GitHub").
+/// that, as an in-order subsequence ("gthb" finds "GitHub"). Subsequence matching is
+/// only allowed on fields that opt in (short ones such as the name): in a long URL
+/// the letters of almost any word occur in order somewhere.
 public enum Fuzzy {
+    public struct Field {
+        public let text: String
+        public let weight: Int
+        public let allowsSubsequence: Bool
+        public init(_ text: String, weight: Int, allowsSubsequence: Bool = false) {
+            self.text = text; self.weight = weight; self.allowsSubsequence = allowsSubsequence
+        }
+    }
+
     /// Score of one already-folded token against one already-folded field.
-    static func score(token: String, in field: String) -> Int? {
+    static func score(token: String, in field: String, allowSubsequence: Bool = true) -> Int? {
         guard !token.isEmpty, !field.isEmpty else { return nil }
         if let range = field.range(of: token) {
             let index = field.distance(from: field.startIndex, to: range.lowerBound)
@@ -20,6 +31,7 @@ public enum Fuzzy {
             if token.count == field.count { score += 200 }
             return score
         }
+        guard allowSubsequence, token.count >= 3 else { return nil }
         // Subsequence: greedy left-to-right, penalise gaps.
         var gaps = 0
         var searchFrom = field.startIndex
@@ -34,7 +46,7 @@ public enum Fuzzy {
     }
 
     /// `fields` are (folded text, weight). `query` is folded here.
-    public static func score(query: String, fields: [(String, Int)]) -> Int? {
+    public static func score(query: String, fields: [Field]) -> Int? {
         let tokens = query
             .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
             .split(whereSeparator: { $0.isWhitespace })
@@ -43,9 +55,9 @@ public enum Fuzzy {
         var total = 0
         for token in tokens {
             var best: Int?
-            for (text, weight) in fields {
-                if let s = score(token: token, in: text) {
-                    best = max(best ?? 0, s * weight)
+            for field in fields {
+                if let s = score(token: token, in: field.text, allowSubsequence: field.allowsSubsequence) {
+                    best = max(best ?? 0, s * field.weight)
                 }
             }
             guard let best else { return nil }

@@ -76,11 +76,11 @@ struct GeneratorTabView: View {
                 Spacer()
                 Button { g.regenerate() } label: {
                     HStack(spacing: 5) { Image(systemName: "arrow.clockwise"); Text(t("gen.regenerate")) }
-                }.buttonStyle(SecondaryButtonStyle())
+                }.buttonStyle(SecondaryButtonStyle()).handCursor()
                 Button { state.copyValue(g.value, missingKey: "toast.copied") } label: {
                     HStack(spacing: 5) { Image(systemName: "doc.on.doc"); Text(t("gen.copy")) }
                 }
-                .buttonStyle(CompactPrimaryStyle())
+                .buttonStyle(CompactPrimaryStyle()).handCursor()
             }
         }
     }

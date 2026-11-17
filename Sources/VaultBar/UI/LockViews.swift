@@ -29,7 +29,7 @@ struct LockView: View {
                         Text(t("lock.touchID"))
                     }
                 }
-                .buttonStyle(PrimaryButtonStyle())
+                .buttonStyle(PrimaryButtonStyle()).handCursor()
                 .padding(.horizontal, 40)
             }
             VStack(spacing: 8) {
@@ -46,10 +46,10 @@ struct LockView: View {
             Spacer()
             HStack {
                 Button(t("acct.switch")) { state.showAccounts = true }
-                    .buttonStyle(.plain).font(.system(size: 11.5, weight: .medium)).foregroundStyle(Theme.accent)
+                    .buttonStyle(.plain).handCursor().font(.system(size: 11.5, weight: .medium)).foregroundStyle(Theme.accent)
                 Spacer()
                 Button(t("menu.quit")) { NSApp.terminate(nil) }
-                    .buttonStyle(.plain).font(.system(size: 11)).foregroundStyle(Theme.textSecondary)
+                    .buttonStyle(.plain).handCursor().font(.system(size: 11)).foregroundStyle(Theme.textSecondary)
             }
             .padding(.horizontal, 14).padding(.bottom, 10)
         }

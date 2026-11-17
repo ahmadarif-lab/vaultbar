@@ -58,7 +58,7 @@ struct MoreMenu: View {
                 .background(RoundedRectangle(cornerRadius: 7).fill(hovering ? Theme.hover : .clear))
                 .contentShape(Rectangle())
         }
-        .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
+        .menuStyle(.button).buttonStyle(.plain).handCursor().menuIndicator(.hidden).fixedSize()
         .help(t("row.more"))
         .onHover { hovering = $0 }
     }
@@ -86,7 +86,7 @@ struct VaultTabView: View {
                     .padding(.horizontal, 13).frame(height: 30)
                     .background(RoundedRectangle(cornerRadius: 9).fill(Theme.accent))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.plain).handCursor()
             }
             searchRow
             selects
@@ -113,7 +113,7 @@ struct VaultTabView: View {
                     .background(RoundedRectangle(cornerRadius: 9).fill(state.orgFilter != .all ? Theme.accentSoft : Theme.surface))
                     .overlay(RoundedRectangle(cornerRadius: 9).stroke(Theme.stroke))
             }
-            .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
+            .menuStyle(.button).buttonStyle(.plain).handCursor().menuIndicator(.hidden).fixedSize()
             .help(t("filter.more"))
         }
         .padding(.horizontal, 14).padding(.bottom, 8)
@@ -129,14 +129,14 @@ struct VaultTabView: View {
                     Button(f.name) { if let id = f.id { state.folderFilter = .folder(id) } }
                 }
             } label: { SelectChip(icon: "folder", title: folderTitle, active: state.folderFilter != .all) }
-            .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden)
+            .menuStyle(.button).buttonStyle(.plain).handCursor().menuIndicator(.hidden)
 
             Menu {
                 Button(t("filter.allTypes")) { state.typeFilter = nil }
                 Divider()
                 ForEach(ItemType.allCases, id: \.self) { type in Button(typeName(type)) { state.typeFilter = type } }
             } label: { SelectChip(icon: "list.bullet", title: state.typeFilter.map(typeName) ?? t("filter.type"), active: state.typeFilter != nil) }
-            .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden)
+            .menuStyle(.button).buttonStyle(.plain).handCursor().menuIndicator(.hidden)
         }
         .padding(.horizontal, 14).padding(.bottom, 10)
     }
@@ -247,6 +247,7 @@ struct ItemRow: View {
         .background(RoundedRectangle(cornerRadius: 9).fill(selected ? Theme.accentSoft : Theme.surface))
         .overlay(RoundedRectangle(cornerRadius: 9).stroke(selected ? Theme.accent.opacity(0.6) : Theme.stroke))
         .contentShape(Rectangle())
+        .handCursor()
         .onTapGesture { state.selectedRowID = "all-\(entry.id)"; state.openDetail(entry) }
     }
 }
@@ -270,7 +271,7 @@ struct AuthenticatorTabView: View {
                     .padding(.horizontal, 13).frame(height: 30)
                     .background(RoundedRectangle(cornerRadius: 9).fill(Theme.accent))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.plain).handCursor()
             }
             SearchField(text: Binding(get: { state.query }, set: { state.query = $0 }), focusToken: state.focusToken, placeholder: t("twofa.search"))
                 .padding(.horizontal, 14).padding(.bottom, 10)
@@ -319,6 +320,7 @@ struct CodeRow: View {
         .background(RoundedRectangle(cornerRadius: 9).fill(selected ? Theme.accentSoft : Theme.surface))
         .overlay(RoundedRectangle(cornerRadius: 9).stroke(selected ? Theme.accent.opacity(0.6) : Theme.stroke))
         .contentShape(Rectangle())
+        .handCursor()
         .onTapGesture { state.selectedRowID = "authenticator-\(entry.id)"; state.copyCode(entry) }
     }
 }

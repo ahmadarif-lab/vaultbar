@@ -16,7 +16,7 @@ struct ItemDetailView: View {
                     }
                     .foregroundStyle(Theme.accent)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.plain).handCursor()
                 Spacer()
                 IconButton(systemName: "pencil", help: t("menu.edit")) { state.beginEdit(entry) }
                 MoreMenu(state: state, entry: entry, includeView: false)

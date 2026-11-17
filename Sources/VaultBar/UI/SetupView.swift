@@ -243,10 +243,10 @@ struct SetupView: View {
                 }
             }
             CheckRow(title: t("login.remember"), isOn: $model.rememberEmail)
-            Button(t("login.continue")) { model.continueFromEmail() }.buttonStyle(PrimaryButtonStyle())
+            Button(t("login.continue")) { model.continueFromEmail() }.buttonStyle(PrimaryButtonStyle()).handCursor()
             if model.isAdding {
                 Button(t("setup.back")) { model.onCancel?() }
-                    .buttonStyle(.plain).font(.system(size: 12.5)).foregroundStyle(Theme.accent).frame(maxWidth: .infinity)
+                    .buttonStyle(.plain).handCursor().font(.system(size: 12.5)).foregroundStyle(Theme.accent).frame(maxWidth: .infinity)
             }
             Spacer(minLength: 20)
             serverMenu.frame(maxWidth: .infinity)
@@ -267,7 +267,7 @@ struct SetupView: View {
                     Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold)).foregroundStyle(Theme.accent)
                 }
             }
-            .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
+            .menuStyle(.button).buttonStyle(.plain).handCursor().menuIndicator(.hidden).fixedSize()
         }
     }
 
@@ -276,7 +276,7 @@ struct SetupView: View {
             HStack(spacing: 6) {
                 Text(model.email).font(.system(size: 12.5)).foregroundStyle(Theme.textSecondary).lineLimit(1).truncationMode(.middle)
                 Button(t("login.notYou")) { model.step = .email; model.error = nil; model.password = "" }
-                    .buttonStyle(.plain).font(.system(size: 12.5)).foregroundStyle(Theme.accent)
+                    .buttonStyle(.plain).handCursor().font(.system(size: 12.5)).foregroundStyle(Theme.accent)
             }
             Text(t("login.passwordLabel")).font(.system(size: 12.5, weight: .medium)).foregroundStyle(Theme.textPrimary).padding(.top, 4)
             ThemedField(placeholder: "", text: $model.password, secure: true) { Task { await model.submitLogin() } }
@@ -286,12 +286,12 @@ struct SetupView: View {
                 Text(t("setup.apiKeyNote")).font(.system(size: 11)).foregroundStyle(Theme.textSecondary).fixedSize(horizontal: false, vertical: true)
             }
             Button(model.useAPIKey ? t("login.noAPIKey") : t("setup.useAPIKey")) { model.useAPIKey.toggle(); model.error = nil }
-                .buttonStyle(.plain).font(.system(size: 12)).foregroundStyle(Theme.accent)
+                .buttonStyle(.plain).handCursor().font(.system(size: 12)).foregroundStyle(Theme.accent)
             Spacer().frame(height: 4)
             Button(model.busy ? t("setup.loggingIn") : t("setup.login")) { Task { await model.submitLogin() } }
                 .buttonStyle(PrimaryButtonStyle(enabled: !model.busy)).disabled(model.busy)
             Button(t("setup.back")) { model.step = .email; model.error = nil }
-                .buttonStyle(.plain).font(.system(size: 12.5)).foregroundStyle(Theme.accent).frame(maxWidth: .infinity)
+                .buttonStyle(.plain).handCursor().font(.system(size: 12.5)).foregroundStyle(Theme.accent).frame(maxWidth: .infinity)
         }
     }
 
@@ -307,11 +307,11 @@ struct SetupView: View {
                     .font(.system(size: 18, design: .monospaced))
                 if model.provider == .email && !model.needsNewDeviceCode {
                     Button(t("verify.resend")) { Task { await model.resendCode() } }
-                        .buttonStyle(.plain).font(.system(size: 12)).foregroundStyle(Theme.accent)
+                        .buttonStyle(.plain).handCursor().font(.system(size: 12)).foregroundStyle(Theme.accent)
                 }
             }
             HStack(spacing: 8) {
-                Button(t("setup.back")) { model.backToLogin() }.buttonStyle(SecondaryButtonStyle())
+                Button(t("setup.back")) { model.backToLogin() }.buttonStyle(SecondaryButtonStyle()).handCursor()
                 if model.challenge?.supported.isEmpty != true {
                     Button(model.busy ? "…" : t("verify.submit")) { Task { await model.submitCode() } }
                         .buttonStyle(PrimaryButtonStyle(enabled: !model.busy && !model.code.isEmpty)).disabled(model.busy || model.code.isEmpty)

@@ -124,7 +124,7 @@ struct TOTPBadge: View {
                 .background(RoundedRectangle(cornerRadius: 8).fill(hovering ? Theme.hover : .clear))
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.plain).handCursor()
             .help(t("row.copyCode"))
             .onHover { hovering = $0 }
         }
@@ -150,7 +150,7 @@ struct SearchField: View {
             if !text.isEmpty {
                 Button { text = "" } label: {
                     Image(systemName: "xmark.circle.fill").font(.system(size: 12)).foregroundStyle(Theme.textSecondary)
-                }.buttonStyle(.plain)
+                }.buttonStyle(.plain).handCursor()
             }
         }
         .padding(.horizontal, 10)
@@ -216,7 +216,7 @@ struct ScreenHeader<Trailing: View>: View {
             trailing
             if showsAccount {
                 Button { state.showAccounts = true } label: { AccountBadge(initials: state.accountInitials) }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.plain).handCursor()
                     .help(t("acct.title"))
             }
         }
@@ -284,7 +284,7 @@ struct TabBar: View {
                     .frame(maxWidth: .infinity).frame(height: 50)
                     .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.plain).handCursor()
             }
         }
         .background(Theme.surface)
@@ -307,7 +307,7 @@ struct CheckRow: View {
             }
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.plain).handCursor()
     }
 }
 
@@ -368,7 +368,7 @@ struct SegmentedChoice<Value: Hashable>: View {
                         .background(RoundedRectangle(cornerRadius: 7).fill(selection == value ? Theme.accentSoft : .clear))
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.plain).handCursor()
             }
         }
         .padding(3)
