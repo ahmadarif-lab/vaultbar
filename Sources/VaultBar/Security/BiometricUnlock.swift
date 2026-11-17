@@ -41,7 +41,7 @@ enum BiometricUnlock {
 
     static func hasStoredPassword(slot: String) -> Bool {
         let ids = Ids(slot: slot)
-        var q = baseQuery(strict: UserDefaults.standard.string(forKey: ids.modeKey) == "strict", ids: ids)
+        var q = baseQuery(strict: AppDefaults.store.string(forKey: ids.modeKey) == "strict", ids: ids)
         q[kSecReturnData as String] = false
         let ctx = LAContext()
         ctx.interactionNotAllowed = true // existence check must never prompt
@@ -75,7 +75,7 @@ enum BiometricUnlock {
             q[kSecValueData as String] = data
             q[kSecAttrAccessControl as String] = acl
             if SecItemAdd(q as CFDictionary, nil) == errSecSuccess {
-                UserDefaults.standard.set("strict", forKey: ids.modeKey)
+                AppDefaults.store.set("strict", forKey: ids.modeKey)
                 return
             }
         }
@@ -88,15 +88,15 @@ enum BiometricUnlock {
         q[kSecValueData as String] = data
         q[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         guard SecItemAdd(q as CFDictionary, nil) == errSecSuccess else { throw Failure.failed }
-        UserDefaults.standard.set("gated", forKey: ids.modeKey)
-        UserDefaults.standard.set(ctx.evaluatedPolicyDomainState?.base64EncodedString(), forKey: ids.stateKey)
+        AppDefaults.store.set("gated", forKey: ids.modeKey)
+        AppDefaults.store.set(ctx.evaluatedPolicyDomainState?.base64EncodedString(), forKey: ids.stateKey)
     }
 
     // MARK: Retrieve
 
     static func retrieve(reason: String, slot: String) async throws -> String {
         let ids = Ids(slot: slot)
-        let strict = UserDefaults.standard.string(forKey: ids.modeKey) == "strict"
+        let strict = AppDefaults.store.string(forKey: ids.modeKey) == "strict"
         let ctx = LAContext()
         ctx.localizedReason = reason
         var error: NSError?
@@ -104,7 +104,7 @@ enum BiometricUnlock {
 
         if !strict {
             // Fingerprint set changed since enrolment: drop the stored password.
-            let saved = UserDefaults.standard.string(forKey: ids.stateKey)
+            let saved = AppDefaults.store.string(forKey: ids.stateKey)
             let now = ctx.evaluatedPolicyDomainState?.base64EncodedString()
             if saved != now {
                 remove(slot: slot)
@@ -147,7 +147,7 @@ enum BiometricUnlock {
     static func remove(slot: String) {
         let ids = Ids(slot: slot)
         for strict in [true, false] { SecItemDelete(baseQuery(strict: strict, ids: ids) as CFDictionary) }
-        UserDefaults.standard.removeObject(forKey: ids.modeKey)
-        UserDefaults.standard.removeObject(forKey: ids.stateKey)
+        AppDefaults.store.removeObject(forKey: ids.modeKey)
+        AppDefaults.store.removeObject(forKey: ids.stateKey)
     }
 }

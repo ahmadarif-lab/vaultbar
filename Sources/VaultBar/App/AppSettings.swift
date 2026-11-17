@@ -2,13 +2,27 @@ import Foundation
 import Observation
 import VaultKit
 
+/// Where preferences live. Demo, `--selftest` and `--snapshot-dir` runs get a throwaway suite: they flip
+/// settings on purpose and must never touch the real app's preferences.
+enum AppDefaults {
+    static let store: UserDefaults = {
+        let args = CommandLine.arguments
+        let isolated = ["--demo", "--selftest", "--selftest-live", "--snapshot-dir"].contains { args.contains($0) }
+        guard isolated, let suite = UserDefaults(suiteName: "dev.ahmadarif.vaultbar.demo") else { return .standard }
+        if args.contains("--selftest") || args.contains("--selftest-live") || args.contains("--snapshot-dir") {
+            suite.removePersistentDomain(forName: "dev.ahmadarif.vaultbar.demo")
+        }
+        return suite
+    }()
+}
+
 /// Non-secret preferences, persisted in UserDefaults. Nothing sensitive lives
 /// here: no passwords, session keys or vault data.
 @MainActor @Observable
 final class AppSettings {
     static let shared = AppSettings()
 
-    private let defaults = UserDefaults.standard
+    private let defaults = AppDefaults.store
 
     var language: Language { didSet { defaults.set(language.rawValue, forKey: "language") } }
     /// Logged-in accounts (non-secret facts only) and which one is active.
@@ -45,7 +59,7 @@ final class AppSettings {
     static let defaultHotkeyModifiers: UInt32 = 256 | 2048 | 4096 // ⌘ ⌥ ⌃ (Carbon masks)
 
     private init() {
-        let d = UserDefaults.standard
+        let d = AppDefaults.store
         language = Language(rawValue: d.string(forKey: "language") ?? "") ?? .en
         var list = d.data(forKey: "accounts").flatMap { try? JSONDecoder().decode([Account].self, from: $0) } ?? []
         var active = d.string(forKey: "activeAccountID")

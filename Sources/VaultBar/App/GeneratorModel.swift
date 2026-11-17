@@ -8,7 +8,7 @@ import VaultKit
 final class GeneratorModel {
     enum Mode: String, CaseIterable { case password, passphrase }
 
-    private let defaults = UserDefaults.standard
+    private let defaults = AppDefaults.store
 
     var mode: Mode { didSet { defaults.set(mode.rawValue, forKey: "gen.mode"); regenerate() } }
     var password: PasswordOptions { didSet { save(password, "gen.password"); regenerate() } }
@@ -16,7 +16,7 @@ final class GeneratorModel {
     private(set) var value = ""
 
     init() {
-        let d = UserDefaults.standard
+        let d = AppDefaults.store
         mode = Mode(rawValue: d.string(forKey: "gen.mode") ?? "") ?? .password
         password = d.data(forKey: "gen.password").flatMap { try? JSONDecoder().decode(PasswordOptions.self, from: $0) } ?? PasswordOptions()
         passphrase = d.data(forKey: "gen.passphrase").flatMap { try? JSONDecoder().decode(PassphraseOptions.self, from: $0) } ?? PassphraseOptions()

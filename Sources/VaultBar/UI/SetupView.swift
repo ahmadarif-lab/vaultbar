@@ -25,8 +25,8 @@ final class SetupModel {
     var step: Step = .email
     var kind: Kind = .us
     var selfURL = ""
-    var email = UserDefaults.standard.string(forKey: "rememberedEmail") ?? ""
-    var rememberEmail = UserDefaults.standard.string(forKey: "rememberedEmail") != nil
+    var email = AppDefaults.store.string(forKey: "rememberedEmail") ?? ""
+    var rememberEmail = AppDefaults.store.string(forKey: "rememberedEmail") != nil
     var password = ""
     var useAPIKey = false
     var clientID = ""
@@ -83,8 +83,8 @@ final class SetupModel {
         guard mail.contains("@"), mail.count >= 3 else { error = t("login.emailInvalid"); return }
         guard server != nil else { error = t("setup.serverURLInvalid"); return }
         error = nil
-        if rememberEmail { UserDefaults.standard.set(mail, forKey: "rememberedEmail") }
-        else { UserDefaults.standard.removeObject(forKey: "rememberedEmail") }
+        if rememberEmail { AppDefaults.store.set(mail, forKey: "rememberedEmail") }
+        else { AppDefaults.store.removeObject(forKey: "rememberedEmail") }
         step = .password
     }
 

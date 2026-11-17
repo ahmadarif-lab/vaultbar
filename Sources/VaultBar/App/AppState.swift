@@ -131,9 +131,9 @@ final class AppState {
     /// Stable id of this installation, sent to the server as the device identifier.
     var deviceInfo: DeviceInfo {
         let key = "deviceIdentifier"
-        let id = UserDefaults.standard.string(forKey: key) ?? {
+        let id = AppDefaults.store.string(forKey: key) ?? {
             let new = UUID().uuidString
-            UserDefaults.standard.set(new, forKey: key)
+            AppDefaults.store.set(new, forKey: key)
             return new
         }()
         return DeviceInfo(identifier: id)
