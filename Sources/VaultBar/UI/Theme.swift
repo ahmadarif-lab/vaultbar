@@ -93,27 +93,46 @@ struct SecondaryButtonStyle: ButtonStyle {
     }
 }
 
-/// Themed text input used on the lock screen and in the setup/settings windows.
+/// Themed text input used on the lock screen and in the setup/settings screens.
+/// Secure fields get a show/hide eye.
 struct ThemedField: View {
     let placeholder: String
     @Binding var text: String
     var secure = false
     var onSubmit: () -> Void = {}
+    @State private var revealed = false
+    @FocusState private var focused: Bool
 
     var body: some View {
-        Group {
+        HStack(spacing: 2) {
+            Group {
+                if secure && !revealed {
+                    SecureField(placeholder, text: $text).onSubmit(onSubmit)
+                } else {
+                    TextField(placeholder, text: $text).onSubmit(onSubmit)
+                }
+            }
+            .focused($focused)
+            .textFieldStyle(.plain)
+            .font(.system(size: 13))
+            .foregroundStyle(Theme.textPrimary)
             if secure {
-                SecureField(placeholder, text: $text).onSubmit(onSubmit)
-            } else {
-                TextField(placeholder, text: $text).onSubmit(onSubmit)
+                Button {
+                    revealed.toggle()
+                    // Swapping SecureField/TextField drops the focus; take it back.
+                    Task { @MainActor in focused = true }
+                } label: {
+                    Image(systemName: revealed ? "eye.slash" : "eye")
+                        .font(.system(size: 13)).foregroundStyle(Theme.textSecondary)
+                        .frame(width: 26, height: 26).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(revealed ? t("detail.hide") : t("detail.reveal"))
             }
         }
-        .textFieldStyle(.plain)
-        .font(.system(size: 13))
-        .foregroundStyle(Theme.textPrimary)
-        .padding(.horizontal, 10)
+        .padding(.leading, 10).padding(.trailing, secure ? 4 : 10)
         .frame(height: 32)
         .background(RoundedRectangle(cornerRadius: 9).fill(Theme.surface))
-        .overlay(RoundedRectangle(cornerRadius: 9).stroke(Theme.stroke))
+        .overlay(RoundedRectangle(cornerRadius: 9).stroke(focused ? Theme.accent : Theme.stroke, lineWidth: focused ? 1.5 : 1))
     }
 }
