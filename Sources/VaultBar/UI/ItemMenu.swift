@@ -2,7 +2,7 @@ import AppKit
 import VaultKit
 
 /// A menu item that runs a closure. NSMenuItem only knows target/action.
-private final class ClosureMenuItem: NSMenuItem {
+final class ClosureMenuItem: NSMenuItem {
     private let handler: () -> Void
     init(title: String, symbol: String, handler: @escaping () -> Void) {
         self.handler = handler
@@ -78,6 +78,18 @@ enum ItemMenu {
         let menu = NSMenu()
         menu.autoenablesItems = false
         for option in options { menu.addItem(ClosureMenuItem(title: option.title, symbol: option.symbol, handler: option.run)) }
+        popUp(menu)
+    }
+
+    /// The "Scan QR code" choices: from the screen, an image file or the clipboard.
+    static func popUpQRChoices(state: AppState) {
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        for (title, symbol, source) in [(t("qr.screen"), "viewfinder", AppState.QRSource.screen),
+                                        (t("qr.file"), "photo", .file),
+                                        (t("qr.clipboard"), "doc.on.clipboard", .clipboard)] {
+            menu.addItem(ClosureMenuItem(title: title, symbol: symbol) { Task { await state.scanAuthenticatorQR(from: source) } })
+        }
         popUp(menu)
     }
 

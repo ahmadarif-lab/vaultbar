@@ -649,6 +649,83 @@ final class AppState {
         noteActivity()
     }
 
+    // MARK: Scan a 2FA QR code
+
+    enum QRSource { case screen, file, clipboard }
+
+    /// Reads a 2FA setup QR code from the screen, an image file or the clipboard and puts its key in the editor
+    /// (a new login is opened first when no editor is open, as on the 2FA tab).
+    func scanAuthenticatorQR(from source: QRSource) async {
+        noteActivity()
+        let openedHere = editor == nil
+        if openedHere { beginAddAuthenticator() }
+        guard editor?.type == .login else { return }
+
+        let image: CGImage?
+        switch source {
+        case .clipboard:
+            image = Self.clipboardImage()
+            if image == nil { editorError = t("qr.noClipboard"); return }
+        case .file:
+            image = await pickImageFile()
+        case .screen:
+            image = await captureScreenRegion()
+        }
+        guard let image else { // cancelled
+            if openedHere { cancelEditor() }
+            requestShowPopover?()
+            return
+        }
+        switch QRScanner.outcome(in: image) {
+        case .key(let link):
+            editor?.totp = link
+            authenticatorKeyChanged()
+            editorError = nil
+            showToast?(t("qr.read"))
+        case .noQR: editorError = t("qr.notFound")
+        case .notAuthenticator: editorError = t("qr.notAuthenticator")
+        case .migrationExport: editorError = t("qr.migration")
+        }
+        requestShowPopover?()
+    }
+
+    private static func clipboardImage() -> CGImage? {
+        guard let image = NSImage(pasteboard: .general) else { return nil }
+        var rect = CGRect(origin: .zero, size: image.size)
+        return image.cgImage(forProposedRect: &rect, context: nil, hints: nil)
+    }
+
+    private func pickImageFile() async -> CGImage? {
+        keepAppActive = true
+        closePopover?()
+        NSApp.activate(ignoringOtherApps: true)
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.image]
+        panel.allowsMultipleSelection = false
+        panel.message = t("qr.filePanel")
+        let ok = panel.runModal() == .OK
+        keepAppActive = false
+        guard ok, let url = panel.url else { return nil }
+        return QRScanner.image(at: url)
+    }
+
+    /// Lets the user drag a region with the system screenshot tool. The picture goes to a temp file that is deleted right away.
+    private func captureScreenRegion() async -> CGImage? {
+        keepAppActive = true
+        closePopover?()
+        try? await Task.sleep(nanoseconds: 350_000_000) // let the popover finish closing so it is not in the shot
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("vaultbar-\(UUID().uuidString).png")
+        defer { try? FileManager.default.removeItem(at: file); keepAppActive = false }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+        process.arguments = ["-i", "-x", file.path]
+        await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
+            process.terminationHandler = { _ in done.resume() }
+            do { try process.run() } catch { done.resume() }
+        }
+        return QRScanner.image(at: file) // nil when the user pressed esc
+    }
+
     /// Pasting an `otpauth://` link names the item and fills the username when they are still empty.
     func authenticatorKeyChanged() {
         guard var draft = editor, draft.type == .login, let totp = TOTP(parsing: draft.totp) else { return }

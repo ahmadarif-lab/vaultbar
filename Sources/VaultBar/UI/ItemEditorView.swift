@@ -9,27 +9,32 @@ struct FormInput: View {
     var secure = false
     var mono = false
     var autofocus = false
+    /// Optional small button inside the field's right edge (e.g. scan a QR code).
+    var accessory: (symbol: String, help: String, action: () -> Void)?
     @FocusState private var focused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             FieldLabel(label)
-            Group {
-                if secure { SecureField(placeholder, text: $text) } else { TextField(placeholder, text: $text) }
-            }
-            .focused($focused)
-            .onAppear {
-                guard autofocus else { return }
-                // The popover hands focus to its first field when it appears; claim it after that.
-                Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(120))
-                    focused = true
+            HStack(spacing: 2) {
+                Group {
+                    if secure { SecureField(placeholder, text: $text) } else { TextField(placeholder, text: $text) }
                 }
+                .focused($focused)
+                .onAppear {
+                    guard autofocus else { return }
+                    // The popover hands focus to its first field when it appears; claim it after that.
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(120))
+                        focused = true
+                    }
+                }
+                .textFieldStyle(.plain)
+                .font(.system(size: 13, design: mono ? .monospaced : .default))
+                .foregroundStyle(Theme.textPrimary)
+                if let accessory { IconButton(systemName: accessory.symbol, help: accessory.help, action: accessory.action) }
             }
-            .textFieldStyle(.plain)
-            .font(.system(size: 13, design: mono ? .monospaced : .default))
-            .foregroundStyle(Theme.textPrimary)
-            .padding(.horizontal, 9).frame(height: 30)
+            .padding(.leading, 9).padding(.trailing, accessory == nil ? 9 : 3).frame(height: 30)
             .background(RoundedRectangle(cornerRadius: 8).fill(Theme.background))
             .overlay(RoundedRectangle(cornerRadius: 8).stroke(focused ? Theme.accent : Theme.stroke, lineWidth: focused ? 1.5 : 1))
         }
@@ -117,7 +122,8 @@ struct ItemEditorView: View {
             if draft.type == .login {
                 FormInput(label: t("edit.username"), text: bind(\.username))
                 passwordInput
-                FormInput(label: t("edit.totp"), text: bind(\.totp), placeholder: t("edit.totpHint"), mono: true, autofocus: state.editorFocusesKey)
+                FormInput(label: t("edit.totp"), text: bind(\.totp), placeholder: t("edit.totpHint"), mono: true, autofocus: state.editorFocusesKey,
+                          accessory: ("qrcode.viewfinder", t("qr.scan"), { ItemMenu.popUpQRChoices(state: state) }))
                     .onChange(of: draft.totp) { _, _ in state.authenticatorKeyChanged() }
             }
             folderPicker

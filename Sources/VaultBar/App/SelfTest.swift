@@ -1,4 +1,5 @@
 import AppKit
+import CoreImage
 import VaultKit
 
 /// `--selftest`: drives the real AppState and popover (demo vault) through
@@ -122,6 +123,23 @@ enum SelfTest {
         await wait(1.2)
         check(bar.isShown, "popover stays open after a keep-open copy + toast")
         check(NSPasteboard.general.string(forType: .string) == "selftest", "keep-open copy reached the clipboard")
+
+        // Scan a 2FA QR code from an image on the clipboard
+        if let filter = CIFilter(name: "CIQRCodeGenerator") {
+            filter.setValue(Data("otpauth://totp/QRCorp:scan@example.test?secret=JBSWY3DPEHPK3PXP&issuer=QRCorp".utf8), forKey: "inputMessage")
+            if let output = filter.outputImage?.transformed(by: CGAffineTransform(scaleX: 8, y: 8)) {
+                let rep = NSCIImageRep(ciImage: output)
+                let picture = NSImage(size: rep.size)
+                picture.addRepresentation(rep)
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.writeObjects([picture])
+                state.beginAddAuthenticator()
+                await state.scanAuthenticatorQR(from: .clipboard)
+                check(state.editor?.totp.hasPrefix("otpauth://totp/QRCorp") == true && state.editor?.name == "QRCorp"
+                      && state.editor?.username == "scan@example.test", "a QR code on the clipboard fills the key, name and username")
+                state.cancelEditor()
+            }
+        }
 
         // "Add" on the 2FA tab: pasting an otpauth link names the item and fills the username
         state.beginAddAuthenticator()

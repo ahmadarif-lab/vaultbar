@@ -217,6 +217,7 @@ struct AuthenticatorTabView: View {
         VStack(spacing: 0) {
             ScreenHeader(state: state, title: t("tab.2fa"), showsAccount: false) {
                 Text("\(rows.count)").font(.system(size: 12)).foregroundStyle(Theme.textSecondary)
+                IconButton(systemName: "qrcode.viewfinder", help: t("qr.scan"), size: 16) { ItemMenu.popUpQRChoices(state: state) }
                 Button { state.beginAddAuthenticator() } label: {
                     HStack(spacing: 5) {
                         Image(systemName: "plus").font(.system(size: 11, weight: .bold))
