@@ -52,6 +52,21 @@ public final class DemoSession: VaultSession, @unchecked Sendable {
         }
     }
 
+    public func createFolder(name: String) async throws {
+        lock.withLock { counter += 1; folders.append(VaultFolder(id: "demo-folder-\(counter)", name: name)) }
+    }
+
+    public func renameFolder(id: String, name: String) async throws {
+        lock.withLock { if let i = folders.firstIndex(where: { $0.id == id }) { folders[i].name = name } }
+    }
+
+    public func deleteFolder(id: String) async throws {
+        lock.withLock {
+            folders.removeAll { $0.id == id }
+            for i in items.indices where items[i].folderId == id { items[i].folderId = nil }
+        }
+    }
+
     public func importEntries(_ request: ImportRequest) async throws {
         try lock.withLock {
             var ids = request.existingFolderIDs

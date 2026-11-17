@@ -119,6 +119,14 @@ public struct BitwardenAPI: @unchecked Sendable {
 
     // MARK: Identity
 
+    /// `GET /config`: the server software version (nil when the server does not publish one).
+    public func serverVersion() async -> String? {
+        guard let req = try? jsonRequest("GET", endpoints.api.appendingPathComponent("config")),
+              let (data, status) = try? await perform(req), (200..<300).contains(status),
+              let obj = try? JSONUtil.parseObject(data) else { return nil }
+        return (obj["version"] as? String)?.nonEmpty
+    }
+
     public func prelogin(email: String) async throws -> (kdf: KDFConfig, salt: String?) {
         let req = try jsonRequest("POST", endpoints.identity.appendingPathComponent("accounts/prelogin"), body: ["email": email])
         let (data, status) = try await perform(req)

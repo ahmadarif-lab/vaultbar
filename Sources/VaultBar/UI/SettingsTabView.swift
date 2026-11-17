@@ -162,10 +162,11 @@ struct SettingsTabView: View {
                     } else {
                         accountGroup
                     }
+                    vaultGroup
                     securityGroup
                     generalGroup
                     dataGroup
-                    vaultGroup
+                    aboutGroup
                 }
                 .padding(.horizontal, 14).padding(.bottom, 14)
             }
@@ -337,10 +338,39 @@ struct SettingsTabView: View {
 
     private var vaultGroup: some View {
         SettingsGroup(title: t("settingsTab.vault")) {
+            ActionRow(icon: "folder", title: t("folders.title")) { state.folderError = nil; state.showFolders = true }
             ActionRow(icon: "arrow.triangle.2.circlepath", title: t("menu.sync"),
                       detail: state.isSyncing ? t("footer.syncing") : state.syncedText()) { Task { await state.sync() } }
             ActionRow(icon: "lock", title: t("menu.lock")) { state.lockNow() }
             ActionRow(icon: "power", title: t("menu.quit"), divider: false) { NSApp.terminate(nil) }
+        }
+    }
+
+    private var aboutGroup: some View {
+        SettingsGroup(title: t("about.title")) {
+            ActionRow(icon: "info.circle", title: t("about.open"), detail: state.appVersion) { state.openAbout() }
+            ActionRow(icon: "arrow.down.circle", title: t("about.check"), detail: updateDetail, divider: updateRelease != nil) {
+                Task { await state.checkForUpdates() }
+            }
+            if let release = updateRelease {
+                ActionRow(icon: "safari", title: t("about.download"), detail: release.version, divider: false) { NSWorkspace.shared.open(release.url) }
+            }
+        }
+    }
+
+    private var updateRelease: UpdateCheck.Release? {
+        if case .available(let release) = state.updateStatus { return release }
+        return nil
+    }
+
+    private var updateDetail: String? {
+        switch state.updateStatus {
+        case .idle: return nil
+        case .checking: return t("about.checking")
+        case .upToDate: return t("about.upToDate")
+        case .noRelease: return t("about.noRelease")
+        case .failed: return t("about.failed")
+        case .available(let release): return t("about.available", release.version)
         }
     }
 

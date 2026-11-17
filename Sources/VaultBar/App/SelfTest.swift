@@ -84,6 +84,19 @@ enum SelfTest {
         }
         check(state.entries.count == start, "back to the original item count")
 
+        // Folders: add, reject duplicates, rename, delete
+        let folderCount = state.folders.count
+        let folderAdded = await state.addFolder("Selftest folder")
+        check(folderAdded && state.folders.count == folderCount + 1, "a folder can be added")
+        let duplicate = await state.addFolder("selftest FOLDER")
+        check(!duplicate && state.folderError != nil && state.folders.count == folderCount + 1, "a duplicate folder name is rejected")
+        if let created = state.folders.first(where: { $0.name == "Selftest folder" }) {
+            let renamedOK = await state.renameFolder(created, to: "Selftest renamed")
+            check(renamedOK && state.folders.contains { $0.name == "Selftest renamed" }, "a folder can be renamed")
+            if let renamedFolder = state.folders.first(where: { $0.name == "Selftest renamed" }) { await state.deleteFolder(renamedFolder) }
+        }
+        check(state.folders.count == folderCount, "a folder can be deleted")
+
         // Tabs, generator, copy keeping the popover open
         state.tab = .generator
         let first = state.generator.value

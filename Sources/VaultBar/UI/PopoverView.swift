@@ -40,6 +40,10 @@ struct UnlockedView: View {
                     NeedsSetupView(state: state, adding: true)
                 } else if state.showAccounts {
                     AccountActionsView(state: state)
+                } else if state.showAbout {
+                    AboutView(state: state)
+                } else if state.showFolders {
+                    FoldersView(state: state)
                 } else if state.editor != nil {
                     ItemEditorView(state: state)
                 } else {
@@ -54,7 +58,7 @@ struct UnlockedView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            if state.editor == nil && !state.showAccounts && !state.addingAccount { TabBar(state: state) }
+            if state.editor == nil && !state.showAccounts && !state.showFolders && !state.showAbout && !state.addingAccount { TabBar(state: state) }
         }
         .overlay { if let entry = state.pendingDeleteEntry { DeleteConfirm(state: state, entry: entry) } }
     }

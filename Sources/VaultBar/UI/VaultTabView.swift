@@ -2,46 +2,7 @@ import AppKit
 import SwiftUI
 import VaultKit
 
-/// The row/detail ⋮ menu: copy, open, edit, clone, delete.
-struct ItemActions: View {
-    let state: AppState
-    let entry: VaultEntry
-    var includeView = true
-
-    var body: some View {
-        if includeView {
-            Button { state.openDetail(entry) } label: { Label(t("menu.view"), systemImage: "eye") }
-        }
-        Button { state.beginEdit(entry) } label: { Label(t("menu.edit"), systemImage: "pencil") }
-        Divider()
-        switch entry.type {
-        case .login:
-            if entry.username != nil {
-                Button { state.copyUsername(entry) } label: { Label(t("menu.copyUser"), systemImage: "person") }
-            }
-            if entry.password != nil {
-                Button { state.copyPassword(entry) } label: { Label(t("menu.copyPassword"), systemImage: "key") }
-            }
-            if entry.totp != nil {
-                Button { state.copyCode(entry) } label: { Label(t("menu.copyCode"), systemImage: "clock") }
-            }
-            if let url = entry.uris.lazy.compactMap(openableURL).first {
-                Button { NSWorkspace.shared.open(url) } label: { Label(t("menu.open"), systemImage: "arrow.up.right.square") }
-            }
-        case .card:
-            Button { state.copyValue(entry.item.card?.number, missingKey: "toast.noUsername") } label: { Label(t("menu.copyNumber"), systemImage: "creditcard") }
-            Button { state.copyValue(entry.item.card?.code, missingKey: "toast.noUsername") } label: { Label(t("menu.copySecurity"), systemImage: "lock") }
-        case .identity, .secureNote:
-            EmptyView()
-        }
-        Divider()
-        Button { Task { await state.clone(entry) } } label: { Label(t("menu.clone"), systemImage: "doc.on.doc") }
-            .disabled(entry.item.organizationId != nil)
-        Button(role: .destructive) { state.requestDelete(entry) } label: { Label(t("menu.delete"), systemImage: "trash") }
-    }
-}
-
-/// Icon-only ⋮ button that opens `ItemActions`.
+/// Icon-only ⋮ button that opens the item menu.
 struct MoreMenu: View {
     let state: AppState
     let entry: VaultEntry
@@ -49,7 +10,9 @@ struct MoreMenu: View {
     @State private var hovering = false
 
     var body: some View {
-        Menu { ItemActions(state: state, entry: entry, includeView: includeView) } label: {
+        Button {
+            ItemMenu.popUp(ItemMenu.make(state: state, entry: entry, includeView: includeView))
+        } label: {
             Image(systemName: "ellipsis")
                 .rotationEffect(.degrees(90))
                 .font(.system(size: 13, weight: .bold))
@@ -58,7 +21,7 @@ struct MoreMenu: View {
                 .background(RoundedRectangle(cornerRadius: 7).fill(hovering ? Theme.hover : .clear))
                 .contentShape(Rectangle())
         }
-        .menuStyle(.button).buttonStyle(.plain).handCursor().menuIndicator(.hidden).fixedSize()
+        .buttonStyle(.plain).handCursor()
         .help(t("row.more"))
         .onHover { hovering = $0 }
     }
@@ -212,15 +175,6 @@ struct ItemRow: View {
     let entry: VaultEntry
     let selected: Bool
 
-    /// What the quick-copy icon copies, like the extension's copy button.
-    private var quickCopy: (() -> Void)? {
-        switch entry.type {
-        case .login: return entry.password != nil ? { state.copyPassword(entry) } : (entry.username != nil ? { state.copyUsername(entry) } : nil)
-        case .card: return entry.item.card?.number != nil ? { state.copyValue(entry.item.card?.number, missingKey: "toast.noUsername") } : nil
-        case .identity, .secureNote: return nil
-        }
-    }
-
     var body: some View {
         HStack(spacing: 10) {
             Avatar(entry: entry, size: 32)
@@ -239,7 +193,9 @@ struct ItemRow: View {
                 }
             }
             Spacer(minLength: 4)
-            if let quickCopy { IconButton(systemName: "doc.on.doc", help: t("row.copyPassword"), action: quickCopy) }
+            if !ItemMenu.copyOptions(state: state, entry: entry).isEmpty {
+                IconButton(systemName: "doc.on.doc", help: t("row.copy")) { ItemMenu.copyButtonPressed(state: state, entry: entry) }
+            }
             MoreMenu(state: state, entry: entry)
         }
         .padding(.horizontal, 10)
@@ -247,7 +203,6 @@ struct ItemRow: View {
         .background(RoundedRectangle(cornerRadius: 9).fill(selected ? Theme.accentSoft : Theme.surface))
         .overlay(RoundedRectangle(cornerRadius: 9).stroke(selected ? Theme.accent.opacity(0.6) : Theme.stroke))
         .contentShape(Rectangle())
-        .handCursor()
         .onTapGesture { state.selectedRowID = "all-\(entry.id)"; state.openDetail(entry) }
     }
 }
@@ -320,7 +275,6 @@ struct CodeRow: View {
         .background(RoundedRectangle(cornerRadius: 9).fill(selected ? Theme.accentSoft : Theme.surface))
         .overlay(RoundedRectangle(cornerRadius: 9).stroke(selected ? Theme.accent.opacity(0.6) : Theme.stroke))
         .contentShape(Rectangle())
-        .handCursor()
         .onTapGesture { state.selectedRowID = "authenticator-\(entry.id)"; state.copyCode(entry) }
     }
 }

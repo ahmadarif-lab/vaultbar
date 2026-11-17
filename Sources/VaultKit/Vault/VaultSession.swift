@@ -75,9 +75,16 @@ public protocol VaultSession: AnyObject, Sendable {
     func delete(id: String) async throws
     /// Adds already de-duplicated items (and any missing folders) in bulk.
     func importEntries(_ request: ImportRequest) async throws
+    func createFolder(name: String) async throws
+    func renameFolder(id: String, name: String) async throws
+    /// Deletes the folder only; its items move to "No folder".
+    func deleteFolder(id: String) async throws
 }
 
 
 public extension VaultSession {
     var lastSaveUsedKeyField: Bool { false }
+    func createFolder(name: String) async throws { throw VaultError.unsupported("folders") }
+    func renameFolder(id: String, name: String) async throws { throw VaultError.unsupported("folders") }
+    func deleteFolder(id: String) async throws { throw VaultError.unsupported("folders") }
 }

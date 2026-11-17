@@ -28,7 +28,6 @@ struct AccountActionsView: View {
                     Text(t("acct.available")).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.textPrimary).padding(.top, 6)
                     ForEach(others) { row in
                         accountCard(row, trailing: AnyView(Image(systemName: "lock").foregroundStyle(Theme.textSecondary)))
-                            .handCursor()
                             .onTapGesture { Task { await state.switchAccount(to: row.id) } }
                     }
                     if others.isEmpty {

@@ -42,6 +42,15 @@ enum Snapshot {
             await popover("accounts")
             state.showAccounts = false
 
+            state.tab = .settings
+            state.showAbout = true
+            await popover("about")
+            state.showAbout = false
+            state.showFolders = true
+            await popover("folders")
+            state.showFolders = false
+            state.tab = .vault
+
             if let github = state.entries.first(where: { $0.id == "d01" }) { state.beginEdit(github) }
             await popover("editor")
             state.cancelEditor()

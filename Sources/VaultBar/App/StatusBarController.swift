@@ -137,6 +137,8 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         if keyCode == 53 { // esc
             if state.addingAccount { state.cancelAddAccount() }
             else if state.showAccounts { state.showAccounts = false; state.confirmLogoutAccount = false }
+            else if unlocked, state.showAbout { state.showAbout = false }
+            else if unlocked, state.showFolders { state.showFolders = false; state.folderError = nil }
             else if unlocked, state.editor != nil { state.cancelEditor() }
             else if unlocked, state.pendingDeleteID != nil { state.cancelDelete() }
             else if unlocked, state.tab == .vault, state.detailEntryID != nil { state.closeDetail() }

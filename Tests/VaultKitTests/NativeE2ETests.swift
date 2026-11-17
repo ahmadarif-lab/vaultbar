@@ -373,6 +373,37 @@ final class NativeE2ETests: XCTestCase {
         print("EDIT-CHECK edited=\(ok) failed=\(failures.values.reduce(0, +))")
     }
 
+    func testFolderCreateRenameDelete() async throws {
+        let (account, password) = try await newAccount()
+        let session = try await login(account, password)
+
+        try await session.createFolder(name: "Work")
+        try await session.createFolder(name: "Café ünï")
+        var snap = try await session.snapshot()
+        XCTAssertEqual(Set(snap.folders.map(\.name)), ["Work", "Café ünï"])
+        let work = try XCTUnwrap(snap.folders.first { $0.name == "Work" }?.id)
+
+        var draft = ItemDraft(type: .login)
+        draft.name = "In folder"; draft.folderId = work
+        try await session.save(draft)
+
+        try await session.renameFolder(id: work, name: "Office")
+        try await session.sync() // what the server really has
+        snap = try await session.snapshot()
+        XCTAssertEqual(Set(snap.folders.map(\.name)), ["Office", "Café ünï"])
+        XCTAssertEqual(snap.items.first { $0.name == "In folder" }?.folderId, work)
+
+        try await session.deleteFolder(id: work)
+        snap = try await session.snapshot()
+        XCTAssertEqual(snap.folders.map(\.name), ["Café ünï"])
+        XCTAssertNil(snap.items.first { $0.name == "In folder" }?.folderId, "cache mirrors the server: items leave the deleted folder")
+        try await session.sync()
+        snap = try await session.snapshot()
+        XCTAssertEqual(snap.folders.map(\.name), ["Café ünï"])
+        XCTAssertNil(snap.items.first { $0.name == "In folder" }?.folderId)
+        XCTAssertEqual(snap.items.count, 1, "deleting a folder keeps its items")
+    }
+
     /// Not a real test: `VW_REGISTER_OUT=/path swift test ... --filter testRegisterForAppSelftest` writes
     /// credentials of a fresh account for the app's `--selftest-live` run.
     func testRegisterForAppSelftest() async throws {

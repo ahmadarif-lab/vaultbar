@@ -62,6 +62,11 @@ final class AppState {
 
     // Accounts screen / add-account flow
     var showAccounts = false
+    var showFolders = false
+    var showAbout = false
+    var serverVersion: String?
+    var folderError: String?
+    var updateStatus: UpdateStatus = .idle
     var addingAccount = false
     var confirmLogoutAccount = false
     /// Demo only: which of the two fake accounts is active.
@@ -180,7 +185,7 @@ final class AppState {
         settings.activeAccountID = account.id
         session = newSession
         addingAccount = false
-        showAccounts = false
+        showAccounts = false; showFolders = false; showAbout = false
         await enterUnlocked()
     }
 
@@ -242,7 +247,7 @@ final class AppState {
         pendingDeleteID = nil
         generator.clear()
         tab = .vault
-        showAccounts = false
+        showAccounts = false; showFolders = false; showAbout = false
         addingAccount = false
         confirmLogoutAccount = false
         Clipboard.clearIfOurs()
@@ -269,7 +274,7 @@ final class AppState {
         session = nil
         query = ""
         detailEntryID = nil
-        showAccounts = false
+        showAccounts = false; showFolders = false; showAbout = false
         confirmLogoutAccount = false
         tab = .vault
         forget(account)
@@ -308,7 +313,7 @@ final class AppState {
     func switchAccount(to id: String) async {
         guard id != (isDemo ? demoActiveAccount : settings.activeAccountID) else { return }
         if phase == .unlocked { await lock() }
-        showAccounts = false
+        showAccounts = false; showFolders = false; showAbout = false
         if isDemo {
             demoActiveAccount = id
             demoTouchID = false
@@ -326,7 +331,7 @@ final class AppState {
 
     func beginAddAccount() {
         if isDemo { leaveDemo(); return }
-        showAccounts = false
+        showAccounts = false; showFolders = false; showAbout = false
         addingAccount = true
     }
 
@@ -694,6 +699,91 @@ final class AppState {
             Task { await sync(silent: true) }
         } catch {
             showToast?(t("toast.actionFailed", (error as? VaultError)?.errorDescription ?? error.localizedDescription))
+        }
+    }
+
+    // MARK: Folders
+
+    func itemCount(inFolder id: String?) -> Int { entries.filter { $0.item.folderId == id }.count }
+
+    /// Returns true on success; the reason is left in `folderError`.
+    func addFolder(_ rawName: String) async -> Bool {
+        guard let name = validFolderName(rawName, excluding: nil), let session else { return false }
+        return await runFolderChange { try await session.createFolder(name: name) }
+    }
+
+    func renameFolder(_ folder: VaultFolder, to rawName: String) async -> Bool {
+        guard let id = folder.id, let name = validFolderName(rawName, excluding: id), let session else { return false }
+        return await runFolderChange { try await session.renameFolder(id: id, name: name) }
+    }
+
+    func deleteFolder(_ folder: VaultFolder) async {
+        guard let id = folder.id, let session else { return }
+        if await runFolderChange({ try await session.deleteFolder(id: id) }, toast: "toast.folderDeleted") {
+            if case .folder(let current) = folderFilter, current == id { folderFilter = .all }
+        }
+    }
+
+    private func validFolderName(_ raw: String, excluding id: String?) -> String? {
+        let name = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if name.isEmpty { folderError = t("folders.nameRequired"); return nil }
+        if folders.contains(where: { $0.id != id && $0.name.caseInsensitiveCompare(name) == .orderedSame }) {
+            folderError = t("folders.exists"); return nil
+        }
+        folderError = nil
+        return name
+    }
+
+    private func runFolderChange(_ work: () async throws -> Void, toast: String = "toast.folderSaved") async -> Bool {
+        do {
+            try await work()
+            folderError = nil
+            noteActivity()
+            await loadVault()
+            showToast?(t(toast))
+            return true
+        } catch {
+            folderError = describe(error)
+            return false
+        }
+    }
+
+    // MARK: About and updates
+
+    enum UpdateStatus: Equatable {
+        case idle, checking, upToDate, noRelease, failed
+        case available(UpdateCheck.Release)
+    }
+
+    var appVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
+    }
+
+    func openAbout() {
+        showAbout = true
+        guard !isDemo, let account = settings.activeAccount else { return }
+        serverVersion = nil
+        Task { serverVersion = await api(for: account).serverVersion() }
+    }
+
+    /// Plain-text summary for the About "Copy" button.
+    var aboutSummary: String {
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0"
+        var lines = ["VaultBar \(appVersion) (\(build))"]
+        if let url = settings.server?.url { lines.append("Server: \(url)" + (serverVersion.map { " (\($0))" } ?? "")) }
+        return lines.joined(separator: "\n")
+    }
+
+    func checkForUpdates() async {
+        updateStatus = .checking
+        do {
+            if let release = try await UpdateCheck.fetchLatest() {
+                updateStatus = UpdateCheck.isNewer(release.version, than: appVersion) ? .available(release) : .upToDate
+            } else {
+                updateStatus = .noRelease
+            }
+        } catch {
+            updateStatus = .failed
         }
     }
 

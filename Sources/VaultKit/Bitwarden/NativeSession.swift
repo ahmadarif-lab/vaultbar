@@ -271,6 +271,48 @@ public final class NativeSession: VaultSession, @unchecked Sendable {
         }
     }
 
+    // MARK: Folders
+
+    private func storeFolders(_ change: ([[String: Any]]) -> [[String: Any]]) {
+        lock.withLock {
+            var data = syncData ?? [:]
+            data["folders"] = change((data["folders"] as? [[String: Any]]) ?? [])
+            syncData = data
+        }
+        persist()
+    }
+
+    public func createFolder(name: String) async throws {
+        let (userKey, _) = try state()
+        let body: [String: Any] = ["name": try EncString.encrypt(name, with: userKey)]
+        let response = try await withToken { try await api.authorized("POST", "folders", body: body, accessToken: $0) }
+        guard response["id"] is String else { throw VaultError.badResponse }
+        storeFolders { $0 + [response] }
+    }
+
+    public func renameFolder(id: String, name: String) async throws {
+        let (userKey, _) = try state()
+        let body: [String: Any] = ["name": try EncString.encrypt(name, with: userKey)]
+        let response = try await withToken { try await api.authorized("PUT", "folders/\(id)", body: body, accessToken: $0) }
+        storeFolders { list in list.map { ($0["id"] as? String) == id ? (response["id"] != nil ? response : $0.merging(["name": body["name"] as Any]) { _, new in new }) : $0 } }
+    }
+
+    public func deleteFolder(id: String) async throws {
+        _ = try state()
+        _ = try await withToken { try await api.authorized("DELETE", "folders/\(id)", body: nil, accessToken: $0) }
+        storeFolders { $0.filter { ($0["id"] as? String) != id } }
+        // The server moves the folder's items to "No folder"; mirror that in the cache.
+        lock.withLock {
+            var data = syncData ?? [:]
+            data["ciphers"] = ((data["ciphers"] as? [[String: Any]]) ?? []).map { cipher in
+                guard (cipher["folderId"] as? String) == id else { return cipher }
+                var c = cipher; c["folderId"] = NSNull(); return c
+            }
+            syncData = data
+        }
+        persist()
+    }
+
     public func importEntries(_ request: ImportRequest) async throws {
         let (userKey, _) = try state()
         var folderIDs = request.existingFolderIDs
