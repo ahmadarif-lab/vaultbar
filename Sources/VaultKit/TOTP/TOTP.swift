@@ -22,9 +22,12 @@ public struct TOTP: Sendable, Equatable {
     public let period: Int
     public let kind: Kind
     public let issuer: String?
+    /// The account part of an `otpauth://` label ("Issuer:alice@x" -> "alice@x").
+    public let account: String?
 
-    public init(secret: Data, algorithm: TOTPAlgorithm = .sha1, digits: Int = 6, period: Int = 30, kind: Kind = .standard, issuer: String? = nil) {
+    public init(secret: Data, algorithm: TOTPAlgorithm = .sha1, digits: Int = 6, period: Int = 30, kind: Kind = .standard, issuer: String? = nil, account: String? = nil) {
         self.secret = secret
+        self.account = account
         self.algorithm = algorithm
         self.digits = digits
         self.period = period
@@ -62,12 +65,15 @@ public struct TOTP: Sendable, Equatable {
             let period = query["period"].flatMap(Int.init) ?? 30
             guard (6...8).contains(digits), period > 0 else { return nil }
             var issuer = query["issuer"]
-            if issuer == nil {
-                // Label form: /Issuer:account
-                let label = comps.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-                if let colon = label.firstIndex(of: ":") { issuer = String(label[..<colon]) }
+            // Label form: /Issuer:account (or just /account)
+            let label = comps.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            var account: String? = label.isEmpty ? nil : label
+            if let colon = label.firstIndex(of: ":") {
+                if issuer == nil { issuer = String(label[..<colon]) }
+                let rest = label[label.index(after: colon)...].trimmingCharacters(in: .whitespaces)
+                account = rest.isEmpty ? nil : rest
             }
-            self.init(secret: secret, algorithm: algo, digits: digits, period: period, kind: .standard, issuer: issuer)
+            self.init(secret: secret, algorithm: algo, digits: digits, period: period, kind: .standard, issuer: issuer, account: account)
             return
         }
 

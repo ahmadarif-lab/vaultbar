@@ -130,6 +130,9 @@ struct SettingsTabView: View {
     @State private var touchError: String?
     @State private var confirmLogout = false
     @State private var loginItemOn = LoginItem.isEnabled
+    @State private var exporting = false
+    @State private var exportPassword = ""
+    @State private var exportError: String?
 
     init(state: AppState) {
         self.state = state
@@ -161,6 +164,7 @@ struct SettingsTabView: View {
                     }
                     securityGroup
                     generalGroup
+                    dataGroup
                     vaultGroup
                 }
                 .padding(.horizontal, 14).padding(.bottom, 14)
@@ -268,6 +272,64 @@ struct SettingsTabView: View {
                     settings.hotkeyEnabled = true
                 }
             }
+        }
+    }
+
+    private var dataGroup: some View {
+        SettingsGroup(title: t("data.title")) {
+            ActionRow(icon: "square.and.arrow.down", title: t("data.import")) { Task { await state.pickAndImport() } }
+            if let report = state.importReport { importReportCard(report) }
+            if let error = state.importError {
+                SettingsRowBox { Text(error).font(.system(size: 12)).foregroundStyle(Theme.danger).fixedSize(horizontal: false, vertical: true).padding(.vertical, 8) }
+            }
+            if exporting {
+                SettingsRowBox(divider: false) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(t("data.exportWarning")).font(.system(size: 11.5)).foregroundStyle(Theme.textSecondary).fixedSize(horizontal: false, vertical: true)
+                        HStack(spacing: 8) {
+                            ThemedField(placeholder: t("data.exportPassword"), text: $exportPassword, secure: true) { Task { await runExport() } }
+                            Button(t("data.exportConfirm")) { Task { await runExport() } }.buttonStyle(CompactPrimaryStyle()).disabled(exportPassword.isEmpty)
+                            Button(t("edit.cancel")) { exporting = false; exportPassword = ""; exportError = nil }.buttonStyle(SecondaryButtonStyle())
+                        }
+                        if let exportError { Text(exportError).font(.system(size: 11.5)).foregroundStyle(Theme.danger) }
+                    }
+                    .padding(.vertical, 10)
+                }
+            } else {
+                ActionRow(icon: "square.and.arrow.up", title: t("data.export"), divider: false) { exporting = true; state.importReport = nil; state.importError = nil }
+            }
+        }
+    }
+
+    private func importReportCard(_ r: ImportReport) -> some View {
+        SettingsRowBox {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack {
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(Color(nsColor: NSColor(hex: 0x2F9E6B)))
+                    Text(t("data.importDone", r.added)).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.textPrimary)
+                    Spacer()
+                    Button(t("data.dismiss")) { state.importReport = nil }.buttonStyle(.plain).font(.system(size: 11.5)).foregroundStyle(Theme.accent)
+                }
+                if r.foldersCreated > 0 { detail(t("data.importFolders", r.foldersCreated)) }
+                if r.duplicates > 0 { detail(t("data.importDuplicates", r.duplicates)) }
+                if r.trashed > 0 { detail(t("data.importTrashed", r.trashed)) }
+                if r.passkeys > 0 { detail(t("data.importPasskeys", r.passkeys)) }
+            }
+            .padding(.vertical, 8)
+        }
+    }
+
+    private func detail(_ text: String) -> some View {
+        Text(text).font(.system(size: 11.5)).foregroundStyle(Theme.textSecondary).fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func runExport() async {
+        let password = exportPassword
+        guard !password.isEmpty else { return }
+        if let error = await state.exportVault(password: password) {
+            exportError = error
+        } else {
+            exporting = false; exportPassword = ""; exportError = nil
         }
     }
 

@@ -33,11 +33,15 @@ Everything, including first-run login and all settings, lives in the popover: no
 - **Generator**: passwords (length 5-128, character sets, minimum numbers/symbols, avoid
   ambiguous) and passphrases (EFF large wordlist), generated locally with the system CSPRNG.
   Options persist; generated values never do.
-- **Bitwarden cloud (US and EU), self-hosted Bitwarden and Vaultwarden.**
+- **Bitwarden cloud (US and EU), self-hosted Bitwarden and Vaultwarden**, multiple accounts, no `bw` CLI needed.
 - **Touch ID unlock** after the first master-password unlock; auto-lock on idle, sleep, screen
   lock and fast user switching.
 - **Clipboard hygiene**: copies are marked concealed/transient so clipboard managers skip them,
   and cleared after a delay (only if the clipboard still holds the copied value).
+- **Import / export**: Bitwarden `.json` (unencrypted) both ways, so you can move a vault in from the
+  browser extension or take a backup out. Import skips items already in the vault (running it twice is
+  harmless), keeps folders and password history, and reports what it skipped. Export asks for the master
+  password first. Passkeys are not carried over; encrypted/CSV exports are not supported yet.
 - **Settings tab**: Touch ID, auto-lock, clipboard timeout, global hotkey recorder, start at login,
   website icons, organization items, language and log out.
 - Item detail with hidden-field masking, English and Bahasa Indonesia, light and dark.
@@ -51,12 +55,8 @@ and collection management.
 
 ## Requirements
 
-- macOS 14 or later
-- The official Bitwarden command line tool: `brew install bitwarden-cli`
-
-VaultBar never implements the vault crypto itself. Login (including 2FA and new-device checks),
-key derivation and decryption all stay in Bitwarden's own audited CLI; VaultBar reads the
-decrypted items from a local `bw serve` it manages.
+- macOS 14 or later. Nothing else: **no `bw` CLI and no Node.** VaultBar talks to the Bitwarden API
+  directly, the same way the browser extension does.
 
 ## Install
 
@@ -67,53 +67,80 @@ brew install --cask ahmadarif-lab/tap/vaultbar
 Or download `VaultBar.dmg` from Releases. The app is ad-hoc signed, not notarized, so on a manual
 install right-click → Open the first time (the Homebrew cask clears the quarantine flag for you).
 
+## Logging in
+
+Enter your e-mail and press Continue (like the extension), then the master password. The server is
+chosen at the bottom ("Accessing: bitwarden.com"): bitwarden.com, bitwarden.eu or your own server
+(Bitwarden self-hosted, Vaultwarden). If the server wants a second step, a verification screen asks for
+the authenticator, e-mail or YubiKey code (or the new-device code Bitwarden e-mails you).
+
+- **Vaultwarden / self-hosted**: tested end to end (login, 2FA, sync, create, edit, clone, delete,
+  Argon2id and PBKDF2 accounts, API key, offline unlock).
+- **bitwarden.com / .eu**: the protocol is the same, but the cloud challenges unofficial clients
+  more often (captcha). If you hit that, tick *Log in with an API key* (web vault → Account
+  settings → Security → Keys); the master password is still needed to decrypt the vault.
+- Passkey, Duo and security-key (WebAuthn/U2F) second factors can't be completed here; use an
+  authenticator app or the API key instead.
+
 ## Build from source
 
 ```sh
-swift test                      # unit + integration tests (uses a fake `bw`)
+swift test                      # unit tests (crypto vectors, generator, TOTP, decryptor…)
 ./Scripts/run_dev.sh --demo     # run with the fake demo vault
 ./Scripts/package_release.sh    # dist/VaultBar.app + dist/VaultBar.dmg + sha256
 ```
 
+End-to-end tests against a real Vaultwarden (needs a server you can throw away):
+
+```sh
+docker run -d --name vw -p 127.0.0.1:18222:80 -e SIGNUPS_ALLOWED=true -e DOMAIN=http://localhost:18222 \
+  -e I_REALLY_WANT_VOLATILE_STORAGE=true -e LOGIN_RATELIMIT_MAX_BURST=1000 -e LOGIN_RATELIMIT_SECONDS=1 vaultwarden/server
+VW_URL=http://127.0.0.1:18222 swift test -c release --filter NativeE2ETests
+```
+
+`--demo` runs a fake vault, `--selftest` drives the app's own state machine in demo mode, and
 `--snapshot-dir <dir>` renders the README screenshots from the demo vault.
 
 ## How it works
 
-```
-VaultBar ── spawns ──▶ bw serve --hostname 127.0.0.1 --port <random>   (only while unlocked)
-   │                         ▲
-   └── REST (localhost) ─────┘   /list/object/*, /object/item (create, update, delete), /sync, /lock
-```
-
-- VaultBar keeps its own `bw` state in `~/Library/Application Support/VaultBar/bw`, so it never
-  touches a `bw` login you may already have.
-- The master password reaches `bw` only through the child's environment (`--passwordenv`), never
-  argv, where `ps` would show it. The session key is held in memory and handed to `bw serve`
-  through its environment.
-- Lock = `bw lock` + stop `bw serve` + drop all decrypted items from memory.
-- TOTP is computed in the app from the decrypted `login.totp`; `bw get totp` is never used.
+- **Keys**: the master key comes from PBKDF2-SHA256 or Argon2id (RFC 9106, implemented here and
+  checked against the RFC test vectors), stretched with HKDF into an AES-256 + HMAC-SHA256 key
+  pair that unwraps your vault key. Items are AES-256-CBC with an HMAC checked before decrypting.
+  Organization items unwrap their keys with RSA-OAEP. Only Apple's CommonCrypto, CryptoKit and
+  Security frameworks are used for the primitives.
+- **Writes** encrypt each field and merge into the item's original JSON, so password history,
+  attachments and passkeys survive an edit. Delete moves to the trash.
+- **Storage**: per account, `~/Library/Application Support/VaultBar/accounts/<id>/` holds the
+  encrypted vault cache (ciphertext only, mode 0600) and the key as the server stores it, so
+  unlocking works offline. The refresh token is in the Keychain.
+- TOTP is computed in the app from the decrypted `login.totp`.
 
 ## Security and threat model
 
 **What it protects against**
 
-- Secrets on disk: nothing secret is written to UserDefaults, logs, crash reports or temp files.
-  The only persisted state is non-secret preferences and `bw`'s own encrypted data file.
-- Shoulder-surfing the clipboard history: concealed + transient pasteboard types, auto-clear.
-- A locked app means a locked vault: while locked there is no `bw serve`, no session key and no
-  decrypted item in memory.
-- Network exposure: `bw serve` listens on 127.0.0.1 only, on a random port, and is killed on
-  lock, on quit, and (via a pid file) on the next launch after a crash.
+- Secrets on disk: nothing secret is written to UserDefaults, logs or temp files. On disk there is
+  only ciphertext (the vault cache and the wrapped key, exactly what the official clients cache)
+  and non-secret preferences. The master password and the decrypted vault key exist only in memory
+  while unlocked.
+- Wrong or tampered data: every item's HMAC is verified before decryption; a bad item is skipped
+  instead of failing the whole vault.
+- A locked app means a locked vault: locking drops the keys, the access token and all decrypted
+  items from memory.
+- Clipboard history: copies are marked concealed/transient and auto-cleared.
+- No local server: unlike a `bw serve` setup, no port is opened on your machine.
+- KDF parameters from the server are range-checked before use (a hostile server can't ask for
+  gigabytes of Argon2 memory).
 - Favicons are off by default; when enabled, only the domain is sent, to your own vault server's
   icon service, and icons are cached in memory only.
 
 **What it does not protect against**
 
-- Malware running as your user. While the vault is unlocked, `bw serve` has no authentication,
-  so any process of yours that finds the port can read the vault. Locking closes that window.
-- A compromised `bw` binary or a hostile `PATH` entry that shadows it.
-- Memory inspection by a privileged attacker while unlocked.
+- Malware running as your user or a privileged attacker who can read this process's memory while
+  the vault is unlocked. Swift strings can't be reliably zeroed, so the master password may
+  linger in freed memory after unlocking.
 - Hardware keyloggers / screen capture while you type the master password.
+- A server you don't trust: it holds your encrypted vault (that is true of any Bitwarden client).
 
 **Touch ID**: the master password (not a session key) sits behind Touch ID. The strongest option
 is a Keychain item with `.biometryCurrentSet` access control, but macOS only allows that for apps
@@ -123,7 +150,11 @@ only after a Touch ID prompt inside the app, and is discarded if your enrolled f
 The fallback is weaker: the Keychain's per-app access list protects the item, not the biometric
 hardware. If that matters to you, leave Touch ID off; every unlock then asks for the master password.
 
-The app runs with the hardened runtime. The App Sandbox is off because the app has to spawn `bw`.
+The app runs with the hardened runtime and needs no sandbox exceptions beyond network access.
+
+VaultBar is an independent project and is not affiliated with or endorsed by Bitwarden.
+Using the API directly is how every third-party client works, but it is not an officially
+supported client: the server may change behavior, and the cloud may challenge logins.
 
 ## License
 

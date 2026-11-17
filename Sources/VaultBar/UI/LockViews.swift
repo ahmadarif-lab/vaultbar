@@ -83,35 +83,6 @@ struct AnyButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View { make(configuration) }
 }
 
-struct CLIMissingView: View {
-    let state: AppState
-    static let command = "brew install bitwarden-cli"
-
-    var body: some View {
-        VStack(spacing: 14) {
-            Spacer()
-            Image(systemName: "terminal").font(.system(size: 30, weight: .light)).foregroundStyle(Theme.accent)
-            Text(t("cli.title")).font(.system(size: 17, weight: .semibold)).foregroundStyle(Theme.textPrimary)
-            Text(t("cli.body")).font(.system(size: 12.5)).foregroundStyle(Theme.textSecondary)
-                .multilineTextAlignment(.center).padding(.horizontal, 36)
-            Text(Self.command)
-                .font(.system(size: 12.5, design: .monospaced)).foregroundStyle(Theme.textPrimary)
-                .padding(.horizontal, 12).padding(.vertical, 8)
-                .background(RoundedRectangle(cornerRadius: 8).fill(Theme.surface))
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.stroke))
-                .textSelection(.enabled)
-            HStack(spacing: 8) {
-                Button(t("cli.copy")) {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(Self.command, forType: .string)
-                }.buttonStyle(SecondaryButtonStyle())
-                Button(t("cli.check")) { Task { await state.recheckCLI() } }.buttonStyle(SecondaryButtonStyle())
-            }
-            Spacer()
-        }
-    }
-}
-
 /// Login, inline in the popover (no separate window): first run, or "Add account".
 struct NeedsSetupView: View {
     let state: AppState

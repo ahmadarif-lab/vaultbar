@@ -45,7 +45,7 @@ final class AppSettings {
         language = Language(rawValue: d.string(forKey: "language") ?? "") ?? .en
         var list = d.data(forKey: "accounts").flatMap { try? JSONDecoder().decode([Account].self, from: $0) } ?? []
         var active = d.string(forKey: "activeAccountID")
-        // First builds had a single account (server + email keys): carry it over, same `bw` folder.
+        // First builds had a single account (server + email keys): carry it over (it is dropped at launch: it has no native key record).
         if list.isEmpty, let email = d.string(forKey: "accountEmail"),
            let server = d.data(forKey: "server").flatMap({ try? JSONDecoder().decode(ServerChoice.self, from: $0) }) {
             list = [Account(id: Account.legacyID, email: email, server: server, touchID: false)]

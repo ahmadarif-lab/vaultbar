@@ -1,5 +1,7 @@
 # VaultBar: PRD
 
+> **Update (Nov 2026):** §6.1 (vault access through the `bw` CLI) was superseded. VaultBar now talks to the Bitwarden API directly (native KDF, EncString and sync implementation, validated against Vaultwarden), so the `bw` dependency, `bw serve` and the cask's `bitwarden-cli` requirement are gone. The README describes the current architecture.
+
 A native macOS menu bar app for your Bitwarden-compatible password vault: search, copy, and live TOTP codes one click away, without opening a browser.
 
 Working name: **VaultBar** (neutral; never use the Bitwarden name or logo in the app name, icon, bundle id or repo name). Public, MIT, `github.com/ahmadarif-lab/vaultbar`.

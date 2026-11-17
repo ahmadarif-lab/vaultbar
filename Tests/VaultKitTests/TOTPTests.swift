@@ -69,6 +69,12 @@ final class TOTPTests: XCTestCase {
         XCTAssertEqual(t?.issuer, "Acme Co")
     }
 
+    func testOtpauthAccountFromLabel() {
+        XCTAssertEqual(TOTP(parsing: "otpauth://totp/GitHub:alice%40example.com?secret=GEZDGNBVGY3TQOJQ")?.account, "alice@example.com")
+        XCTAssertEqual(TOTP(parsing: "otpauth://totp/alice?secret=GEZDGNBVGY3TQOJQ&issuer=Acme")?.account, "alice")
+        XCTAssertNil(TOTP(parsing: "GEZDGNBVGY3TQOJQ")?.account)
+    }
+
     func testOtpauthRejectsBadInput() {
         XCTAssertNil(TOTP(parsing: "otpauth://hotp/x?secret=GEZDGNBVGY3TQOJQ"))
         XCTAssertNil(TOTP(parsing: "otpauth://totp/x"))

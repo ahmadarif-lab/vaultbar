@@ -1,7 +1,7 @@
 import Foundation
 
 /// One logged-in vault. Only non-secret facts live here (it is persisted in
-/// UserDefaults); the master password stays in the Keychain, the vault in `bw`'s own data file.
+/// UserDefaults); the master password stays in the Keychain, the encrypted vault cache on disk.
 public struct Account: Codable, Identifiable, Equatable, Sendable {
     public var id: String
     public var email: String
@@ -15,12 +15,20 @@ public struct Account: Codable, Identifiable, Equatable, Sendable {
         self.touchID = touchID
     }
 
-    /// The account created from the single-account layout of the first builds
-    /// keeps its original `bw` folder and Touch ID slot.
+    /// Id the first (bw-based) builds used for their single account; such accounts have no
+    /// native data and are dropped at launch.
     public static let legacyID = "default"
 
-    /// Every account has its own `bw` data folder: the CLI supports one login per folder.
-    public var dataDirectory: URL { BWCLI.dataDirectory(forAccount: id) }
+    /// Where this account's cached (encrypted) vault lives.
+    public var dataDirectory: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("VaultBar", isDirectory: true)
+            .appendingPathComponent("accounts", isDirectory: true)
+            .appendingPathComponent(id, isDirectory: true)
+    }
+
+    /// Key of this account's refresh token in the secret store.
+    public var refreshTokenKey: String { "refresh-token.\(id)" }
 
     /// Keychain / defaults slot for this account's Touch ID item.
     public var biometricSlot: String { "acct-\(id)" }

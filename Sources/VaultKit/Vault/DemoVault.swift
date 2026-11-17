@@ -5,6 +5,7 @@ import Foundation
 public final class DemoSession: VaultSession, @unchecked Sendable {
     private let lock = NSLock()
     private var items = DemoSession.snapshot.items
+    private var folders = DemoSession.snapshot.folders
     private var counter = 0
 
     public init() {}
@@ -16,7 +17,7 @@ public final class DemoSession: VaultSession, @unchecked Sendable {
     public func lock() async {}
     public func sync() async throws { try await Task.sleep(nanoseconds: 400_000_000) }
     public func snapshot() async throws -> VaultSnapshot {
-        VaultSnapshot(items: lock.withLock { items }, folders: Self.snapshot.folders, organizations: Self.snapshot.organizations)
+        VaultSnapshot(items: lock.withLock { items }, folders: lock.withLock { folders }, organizations: Self.snapshot.organizations)
     }
 
     private func decode(_ json: [String: Any]) throws -> VaultItem {
@@ -48,6 +49,25 @@ public final class DemoSession: VaultSession, @unchecked Sendable {
             copy.id = "demo-new-\(counter)"
             copy.name += nameSuffix
             items.append(copy)
+        }
+    }
+
+    public func importEntries(_ request: ImportRequest) async throws {
+        try lock.withLock {
+            var ids = request.existingFolderIDs
+            for name in request.newFolders {
+                counter += 1
+                let id = "demo-folder-\(counter)"
+                folders.append(VaultFolder(id: id, name: name)); ids[name] = id
+            }
+            for entry in request.entries {
+                counter += 1
+                var draft = entry.draft
+                draft.folderId = entry.folderName.flatMap { ids[$0] }
+                var json = draft.json()
+                json["id"] = "demo-new-\(counter)"
+                items.append(try decode(json))
+            }
         }
     }
 

@@ -268,6 +268,16 @@ struct AuthenticatorTabView: View {
         VStack(spacing: 0) {
             ScreenHeader(title: t("tab.2fa")) {
                 Text("\(rows.count)").font(.system(size: 12)).foregroundStyle(Theme.textSecondary)
+                Button { state.beginAddAuthenticator() } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "plus").font(.system(size: 11, weight: .bold))
+                        Text(t("header.add"))
+                    }
+                    .font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.onAccent)
+                    .padding(.horizontal, 13).frame(height: 30)
+                    .background(RoundedRectangle(cornerRadius: 9).fill(Theme.accent))
+                }
+                .buttonStyle(.plain)
             }
             SearchField(text: Binding(get: { state.query }, set: { state.query = $0 }), focusToken: state.focusToken, placeholder: t("twofa.search"))
                 .padding(.horizontal, 14).padding(.bottom, 10)

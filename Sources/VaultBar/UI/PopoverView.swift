@@ -15,8 +15,6 @@ struct PopoverView: View {
             switch state.phase {
             case .checking:
                 ProgressView().controlSize(.small)
-            case .cliMissing:
-                CLIMissingView(state: state)
             case .needsSetup:
                 NeedsSetupView(state: state)
             case .locked:

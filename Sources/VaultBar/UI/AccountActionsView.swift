@@ -2,7 +2,7 @@ import SwiftUI
 import VaultKit
 
 /// Like the extension's "Account actions": the active account, the other accounts
-/// (one `bw` login each, only one open at a time), Add account, Lock now, Log out.
+/// (one login each, only one open at a time), Add account, Lock now, Log out.
 struct AccountActionsView: View {
     let state: AppState
 

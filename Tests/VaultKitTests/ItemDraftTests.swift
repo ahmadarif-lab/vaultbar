@@ -91,3 +91,63 @@ final class ItemDraftTests: XCTestCase {
         XCTAssertEqual(ItemDraft(item: item).username, "u")
     }
 }
+
+final class AuthenticatorKeyStorageTests: XCTestCase {
+    func testFieldModeMovesKeyOutOfLoginTotp() throws {
+        var d = ItemDraft(type: .login); d.name = "X"; d.totp = "GEZDGNBVGY3TQOJQ"
+        d.fields = [CustomField(name: "PIN", value: "1", type: .text)]
+        let plain = d.json()
+        XCTAssertEqual((plain["login"] as? [String: Any])?["totp"] as? String, "GEZDGNBVGY3TQOJQ")
+
+        let inField = try d.json(merging: nil, totpInField: true, transform: { "enc(\($0))" })
+        XCTAssertTrue((inField["login"] as? [String: Any])?["totp"] is NSNull)
+        let fields = try XCTUnwrap(inField["fields"] as? [[String: Any]])
+        XCTAssertEqual(fields.map { $0["name"] as? String }, ["enc(PIN)", "enc(VaultBar 2FA)"])
+        XCTAssertEqual(fields.last?["value"] as? String, "enc(GEZDGNBVGY3TQOJQ)")
+        XCTAssertEqual(fields.last?["type"] as? Int, 1, "stored as a hidden field")
+    }
+
+    func testItemReadsKeyFromEitherPlace() {
+        let a = VaultItem(id: "1", type: .login, name: "a", login: LoginData(username: nil, password: nil, totp: "AAAA", uris: nil))
+        let b = VaultItem(id: "2", type: .login, name: "b", login: LoginData(), fields: [CustomField(name: "vaultbar 2fa", value: "BBBB", type: .hidden)])
+        XCTAssertEqual(a.authenticatorKey, "AAAA")
+        XCTAssertEqual(b.authenticatorKey, "BBBB", "field name is matched case-insensitively")
+        XCTAssertNil(VaultItem(id: "3", type: .login, name: "c").authenticatorKey)
+        XCTAssertFalse(ItemDraft(item: b).fields.contains { TOTPStorage.isKeyField($0) })
+        XCTAssertEqual(ItemDraft(item: b).totp, "BBBB")
+    }
+
+    func testImportMovesStorageFieldBackToKeyInput() throws {
+        let json = #"{"encrypted":false,"folders":[],"items":[{"id":"1","type":1,"name":"X","login":{"username":"u","totp":null},"fields":[{"name":"VaultBar 2FA","value":"CCCC","type":1},{"name":"keep","value":"v","type":0}]}]}"#
+        let plan = try BitwardenFile.parse(Data(json.utf8))
+        XCTAssertEqual(plan.entries[0].draft.totp, "CCCC")
+        XCTAssertEqual(plan.entries[0].draft.fields.map(\.name), ["keep"])
+    }
+}
+
+final class SaveVerifierTests: XCTestCase {
+    private func server(totp: String? = nil, notes: String? = nil) -> VaultItem {
+        VaultItem(id: "1", type: .login, name: "Site", notes: notes, login: LoginData(username: "u", password: "p", totp: totp, uris: [LoginURI(uri: "https://a.test")]))
+    }
+    private func draft(totp: String = "", notes: String = "") -> ItemDraft {
+        var d = ItemDraft(type: .login); d.name = "Site"; d.username = "u"; d.password = "p"; d.uris = ["https://a.test"]; d.totp = totp; d.notes = notes
+        return d
+    }
+
+    func testIdenticalIsClean() {
+        XCTAssertEqual(SaveVerifier.differences(draft: draft(totp: "K", notes: "n"), server: server(totp: "K", notes: "n")), [])
+        XCTAssertEqual(SaveVerifier.differences(draft: draft(), server: server()), [], "empty and missing are the same")
+    }
+
+    func testReportsFieldNamesOnly() {
+        XCTAssertEqual(SaveVerifier.differences(draft: draft(totp: ""), server: server(totp: "OLDKEY")), ["authenticator key"], "a clear that the server ignored")
+        XCTAssertEqual(SaveVerifier.differences(draft: draft(totp: "NEW"), server: server(totp: nil)), ["authenticator key"])
+        var d = draft(); d.password = "changed"; d.name = "Renamed"
+        XCTAssertEqual(SaveVerifier.differences(draft: d, server: server()), ["name", "password"])
+    }
+
+    func testKeyInHiddenFieldCountsAsKept() {
+        var s = server(); s.fields = [CustomField(name: TOTPStorage.fieldName, value: "K", type: .hidden)]
+        XCTAssertEqual(SaveVerifier.differences(draft: draft(totp: "K"), server: s), [])
+    }
+}

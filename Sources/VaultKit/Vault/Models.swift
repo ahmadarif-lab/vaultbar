@@ -58,7 +58,14 @@ public struct CustomField: Codable, Sendable, Hashable {
     }
 }
 
-/// One vault item as returned by `bw serve` (`/list/object/items`).
+/// Bitwarden keeps `login.totp` only for Premium accounts (free accounts can't store it), so VaultBar
+/// falls back to an ordinary encrypted hidden custom field, which no plan restricts.
+public enum TOTPStorage {
+    public static let fieldName = "VaultBar 2FA"
+    static func isKeyField(_ f: CustomField) -> Bool { f.name?.caseInsensitiveCompare(fieldName) == .orderedSame }
+}
+
+/// One vault item as decrypted from the server's `/sync` payload.
 /// Decoding is lenient: every field the server may omit is optional.
 public struct VaultItem: Codable, Sendable, Hashable, Identifiable {
     public var id: String
@@ -72,6 +79,12 @@ public struct VaultItem: Codable, Sendable, Hashable, Identifiable {
     public var card: CardData?
     public var identity: IdentityData?
     public var fields: [CustomField]?
+
+    /// The authenticator key, wherever it is stored: `login.totp`, else the VaultBar custom field.
+    public var authenticatorKey: String? {
+        if let t = login?.totp?.nonEmpty { return t }
+        return fields?.first(where: TOTPStorage.isKeyField)?.value?.nonEmpty
+    }
 
     public init(id: String, organizationId: String? = nil, folderId: String? = nil, type: ItemType, name: String,
                 notes: String? = nil, favorite: Bool? = nil, login: LoginData? = nil, card: CardData? = nil,
@@ -136,7 +149,7 @@ public struct VaultEntry: Identifiable, Sendable {
 
     public init(item: VaultItem, folders: [String: String], organizations: [String: String]) {
         self.item = item
-        if let raw = item.login?.totp?.nonEmpty { self.totp = TOTP(parsing: raw) } else { self.totp = nil }
+        if let raw = item.authenticatorKey { self.totp = TOTP(parsing: raw) } else { self.totp = nil }
         self.folderName = item.folderId.flatMap { folders[$0] }
         self.organizationName = item.organizationId.flatMap { organizations[$0] }
         self.uris = (item.login?.uris ?? []).compactMap { $0.uri?.nonEmpty }

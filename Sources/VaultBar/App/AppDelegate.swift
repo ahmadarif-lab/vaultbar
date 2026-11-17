@@ -10,11 +10,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let snapshotDir: URL?
 
     private let selfTest: Bool
+    private let selfTestLive: Bool
 
-    init(demo: Bool, snapshotDir: URL? = nil, selfTest: Bool = false) {
+    init(demo: Bool, snapshotDir: URL? = nil, selfTest: Bool = false, selfTestLive: Bool = false) {
         state = AppState(demo: demo)
         self.snapshotDir = snapshotDir
         self.selfTest = selfTest
+        self.selfTestLive = selfTestLive
         super.init()
     }
 
@@ -36,6 +38,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         Task {
             await state.bootstrap()
+            if selfTestLive {
+                exit(await SelfTest.runLive(state: state, bar: bar) ? 0 : 1)
+            }
             if selfTest {
                 let ok = await SelfTest.run(state: state, bar: bar)
                 exit(ok ? 0 : 1)

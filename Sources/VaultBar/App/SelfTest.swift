@@ -96,6 +96,42 @@ enum SelfTest {
         check(bar.isShown, "popover stays open after a keep-open copy + toast")
         check(NSPasteboard.general.string(forType: .string) == "selftest", "keep-open copy reached the clipboard")
 
+        // "Add" on the 2FA tab: pasting an otpauth link names the item and fills the username
+        state.beginAddAuthenticator()
+        check(state.editor?.type == .login && state.editorFocusesKey, "2FA Add opens a login with the key field focused")
+        state.editor?.totp = "otpauth://totp/Acme:bob@example.test?secret=JBSWY3DPEHPK3PXP&issuer=Acme"
+        state.authenticatorKeyChanged()
+        check(state.editor?.name == "Acme" && state.editor?.username == "bob@example.test", "an otpauth link fills name and username")
+        await state.saveEditor()
+        state.tab = .authenticator
+        check(state.rows.contains { $0.entry.name == "Acme" }, "the new code appears in the 2FA tab")
+        if let acme = state.entries.first(where: { $0.name == "Acme" }) { state.requestDelete(acme); await state.confirmDelete() }
+        state.tab = .vault
+
+        // Import a Bitwarden .json (written to a temp file), twice, then export
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("vaultbar-selftest-\(UUID().uuidString).json")
+        let sample = #"{"encrypted":false,"folders":[{"id":"f","name":"Imported"}],"items":[{"id":"i1","type":1,"name":"Imported login","folderId":"f","login":{"username":"imp","password":"pw","uris":[{"uri":"https://imp.test"}]}},{"id":"i2","type":2,"name":"Imported note","notes":"x","secureNote":{"type":0}},{"id":"i3","type":1,"name":"Gone","deletedDate":"2026-01-01T00:00:00Z","login":{}}]}"#
+        try? sample.write(to: tmp, atomically: true, encoding: .utf8)
+        let before = state.entries.count
+        await state.importFile(at: tmp)
+        check(state.importReport?.added == 2 && state.importReport?.trashed == 1 && state.entries.count == before + 2, "import adds the file's items and skips the trash")
+        check(state.folders.contains { $0.name == "Imported" } && state.entries.first { $0.name == "Imported login" }?.folderName == "Imported", "import creates the folder and files the item in it")
+        await state.importFile(at: tmp)
+        check(state.importReport?.added == 0 && state.importReport?.duplicates == 2 && state.entries.count == before + 2, "importing the same file again adds nothing")
+        try? "{\"encrypted\":true}".write(to: tmp, atomically: true, encoding: .utf8)
+        await state.importFile(at: tmp)
+        check(state.importError == t("data.importEncrypted"), "an encrypted export is explained, not imported")
+        try? "nope".write(to: tmp, atomically: true, encoding: .utf8)
+        await state.importFile(at: tmp)
+        check(state.importError != nil, "a foreign file is refused")
+        try? FileManager.default.removeItem(at: tmp)
+        if let exported = try? state.exportJSON(), let plan = try? BitwardenFile.parse(exported.data) {
+            check(exported.count == plan.entries.count && plan.entries.contains { $0.draft.name == "Imported login" && $0.folderName == "Imported" },
+                  "export contains the imported item with its folder")
+        } else { check(false, "export builds") }
+        // leave the demo vault as it was
+        for e in state.entries where e.name.hasPrefix("Imported") { state.requestDelete(e); await state.confirmDelete() }
+
         // Settings live in the popover: no separate window may ever open
         func titledWindowVisible() -> Bool { NSApp.windows.contains { $0.isVisible && $0.styleMask.contains(.titled) } }
         state.openSettingsTab()
@@ -163,6 +199,81 @@ enum SelfTest {
         check(state.phase == .locked, "phase is locked")
 
         Clipboard.clearIfOurs()
+        print(failures == 0 ? "ALL PASSED" : "\(failures) FAILED")
+        return failures == 0
+    }
+
+    /// `--selftest-live` with `VB_LIVE=/path/to/creds.json`: the whole app flow against a real server
+    /// (Vaultwarden): the same SetupModel the UI uses, then CRUD, lock/unlock and logout.
+    static func runLive(state: AppState, bar: StatusBarController) async -> Bool {
+        var failures = 0
+        func check(_ ok: Bool, _ what: String) {
+            print(ok ? "PASS  \(what)" : "FAIL  \(what)")
+            if !ok { failures += 1 }
+        }
+        guard let path = ProcessInfo.processInfo.environment["VB_LIVE"],
+              let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+              let creds = try? JSONSerialization.jsonObject(with: data) as? [String: String],
+              let email = creds["email"], let password = creds["password"], let server = creds["server"] else {
+            print("FAIL  VB_LIVE credentials file missing"); return false
+        }
+
+        check(state.phase == .needsSetup, "fresh app starts at the setup screen")
+        let model = SetupModel(state: state)
+        model.kind = .selfHosted; model.selfURL = server
+        model.email = "not an email"
+        model.continueFromEmail()
+        check(model.step == .email && model.error != nil, "an invalid email is refused on the first step")
+        model.email = email
+        model.continueFromEmail()
+        check(model.step == .password && model.serverLabel == URL(string: server)?.host, "email step moves to the password step")
+        model.password = "definitely wrong"
+        await model.submitLogin()
+        check(model.step == .password && model.error == t("lock.wrongPassword"), "wrong password is reported in the password step")
+        model.password = password
+        await model.submitLogin()
+        check(model.step == .finish && model.error == nil, "correct login reaches the finish step")
+        model.enableTouchID = false; model.enableLoginItem = false
+        await model.finish()
+        check(state.phase == .unlocked && state.settings.activeAccount?.email == email, "finish unlocks and records the account")
+        check(state.settings.activeAccount?.server == .selfHosted(server), "the account remembers its server")
+
+        // CRUD through the same AppState calls the UI makes
+        state.beginAdd()
+        state.editor?.name = "Live item"; state.editor?.username = "live@example.test"; state.editor?.password = "pw-live"
+        state.editor?.totp = "JBSWY3DPEHPK3PXP"; state.editor?.uris = ["https://live.example.test"]
+        await state.saveEditor()
+        let created = state.entries.first { $0.name == "Live item" }
+        check(created != nil && state.editor == nil, "item saved on the server")
+        check(created?.totp != nil, "its authenticator key shows in the 2FA tab")
+        if let created {
+            state.beginEdit(created); state.editor?.name = "Live item v2"; state.editor?.password = "pw-live-2"
+            await state.saveEditor()
+            check(state.entries.first { $0.id == created.id }?.name == "Live item v2", "edit saved")
+            let v2 = state.entries.first { $0.id == created.id }!
+            await state.clone(v2)
+            let clone = state.entries.first { $0.name == "Live item v2" + t("clone.suffix") }
+            check(clone != nil, "clone created")
+            if let clone { state.requestDelete(clone); await state.confirmDelete() }
+            check(!state.entries.contains { $0.name.hasSuffix(t("clone.suffix")) }, "clone deleted (trash)")
+        }
+
+        // Lock, wrong password, unlock again from the cache
+        await state.lock()
+        check(state.phase == .locked && state.entries.isEmpty, "lock wipes the decrypted items")
+        await state.unlock(password: "nope")
+        check(state.phase == .locked && state.lockMessage == t("lock.wrongPassword"), "wrong master password is refused")
+        await state.unlock(password: password)
+        check(state.phase == .unlocked && state.entries.contains { $0.name == "Live item v2" }, "unlock restores the vault")
+        await state.sync()
+        check(state.entries.contains { $0.name == "Live item v2" }, "sync keeps the vault consistent")
+
+        // Logout forgets everything local
+        let dir = state.settings.activeAccount!.dataDirectory
+        await state.logout()
+        check(state.phase == .needsSetup && state.settings.accounts.isEmpty, "logout returns to setup")
+        check(!FileManager.default.fileExists(atPath: dir.path), "logout deletes the cached vault")
+
         print(failures == 0 ? "ALL PASSED" : "\(failures) FAILED")
         return failures == 0
     }

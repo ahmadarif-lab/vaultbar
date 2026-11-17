@@ -98,7 +98,7 @@ struct TOTPRing: View {
     }
 }
 
-/// Live code + countdown ring. Click copies. Previews the next code in the last 5 s.
+/// Live code + countdown ring. Click copies.
 struct TOTPBadge: View {
     let totp: TOTP
     var large = false
@@ -117,11 +117,6 @@ struct TOTPBadge: View {
                             .font(.system(size: large ? 19 : 15, weight: .semibold, design: .monospaced))
                             .foregroundStyle(urgent ? Theme.warning : Theme.textPrimary)
                             .lineLimit(1).fixedSize()
-                        if urgent {
-                            Text("\(t("row.next")) \(TOTP.grouped(totp.nextCode(at: now)))")
-                                .font(.system(size: 10, design: .monospaced))
-                                .foregroundStyle(Theme.textSecondary)
-                        }
                     }
                     TOTPRing(fraction: totp.fractionRemaining(at: now), urgent: urgent, size: large ? 22 : 18)
                 }

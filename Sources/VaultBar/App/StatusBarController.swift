@@ -77,7 +77,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         // Hand focus back to the app the user was in, so ⌘V lands there. But never hide
         // the app while Settings or Setup is open: hide() would take that window with it.
         let otherWindowOpen = NSApp.windows.contains { $0.isVisible && $0.styleMask.contains(.titled) }
-        if !otherWindowOpen { NSApp.hide(nil) }
+        if !otherWindowOpen && !state.keepAppActive { NSApp.hide(nil) }
     }
 
     private func showContextMenu() {

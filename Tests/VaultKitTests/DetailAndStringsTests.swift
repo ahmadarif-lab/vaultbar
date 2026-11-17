@@ -79,12 +79,11 @@ final class AccountTests: XCTestCase {
         XCTAssertEqual(Account(email: "a@b.c", server: .selfHosted("https://vault.example.com:8443/")).host, "vault.example.com")
     }
 
-    func testEachAccountHasItsOwnDataFolderAndLegacyKeepsTheOldOne() {
+    func testEachAccountHasItsOwnDataFolder() {
         let a = Account(email: "a@b.c", server: .bitwardenUS)
         let b = Account(email: "b@b.c", server: .bitwardenUS)
         XCTAssertNotEqual(a.dataDirectory, b.dataDirectory)
-        XCTAssertTrue(a.dataDirectory.path.contains("/accounts/\(a.id)/bw"))
-        XCTAssertEqual(Account(id: Account.legacyID, email: "x@y.z", server: .bitwardenUS).dataDirectory, BWCLI.defaultDataDirectory)
+        XCTAssertTrue(a.dataDirectory.path.hasSuffix("/VaultBar/accounts/\(a.id)"))
         XCTAssertNotEqual(a.biometricSlot, b.biometricSlot)
     }
 

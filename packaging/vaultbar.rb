@@ -10,7 +10,6 @@ cask "vaultbar" do
   desc "Menu bar app for a Bitwarden-compatible vault: vault, generator and live 2FA codes"
   homepage "https://github.com/ahmadarif-lab/vaultbar"
 
-  depends_on formula: "bitwarden-cli"
   depends_on macos: ">= :sonoma"
 
   app "VaultBar.app"

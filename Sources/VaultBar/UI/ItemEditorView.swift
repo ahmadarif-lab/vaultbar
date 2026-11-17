@@ -47,6 +47,18 @@ struct ItemEditorView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
+            // Always visible: this used to sit at the bottom of a long form, where a failed save went unnoticed.
+            if let error = state.editorError {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Theme.danger)
+                    Text(error).font(.system(size: 12.5)).foregroundStyle(Theme.textPrimary).fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                }
+                .padding(10)
+                .background(RoundedRectangle(cornerRadius: 9).fill(Theme.danger.opacity(0.14)))
+                .overlay(RoundedRectangle(cornerRadius: 9).stroke(Theme.danger.opacity(0.5)))
+                .padding(.horizontal, 14).padding(.bottom, 8)
+            }
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 10) {
                     if draft.isNew { typeCard }
@@ -61,9 +73,6 @@ struct ItemEditorView: View {
                     customFieldsCard
                     if draft.organizationId != nil {
                         Text(t("edit.orgNote")).font(.system(size: 11.5)).foregroundStyle(Theme.textSecondary)
-                    }
-                    if let error = state.editorError {
-                        Text(error).font(.system(size: 12)).foregroundStyle(Theme.danger).frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
                 .padding(.horizontal, 14).padding(.bottom, 16)
@@ -97,11 +106,12 @@ struct ItemEditorView: View {
 
     private var mainCard: some View {
         Card {
-            FormInput(label: t("edit.name"), text: bind(\.name), autofocus: draft.isNew)
+            FormInput(label: t("edit.name"), text: bind(\.name), autofocus: draft.isNew && !state.editorFocusesKey)
             if draft.type == .login {
                 FormInput(label: t("edit.username"), text: bind(\.username))
                 passwordInput
-                FormInput(label: t("edit.totp"), text: bind(\.totp), placeholder: t("edit.totpHint"), mono: true)
+                FormInput(label: t("edit.totp"), text: bind(\.totp), placeholder: t("edit.totpHint"), mono: true, autofocus: state.editorFocusesKey)
+                    .onChange(of: draft.totp) { _, _ in state.authenticatorKeyChanged() }
             }
             folderPicker
             CheckRow(title: t("edit.favorite"), isOn: bind(\.favorite))

@@ -19,8 +19,7 @@ let package = Package(
         .testTarget(
             name: "VaultKitTests",
             dependencies: ["VaultKit"],
-            path: "Tests/VaultKitTests",
-            exclude: ["Fixtures"]
+            path: "Tests/VaultKitTests"
         ),
     ]
 )

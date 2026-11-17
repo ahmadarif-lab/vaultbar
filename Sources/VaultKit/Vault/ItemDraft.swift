@@ -1,7 +1,7 @@
 import Foundation
 
 /// What the editor works on. Saving merges it into the item's original JSON
-/// (`bw` returns fields this app does not model: password history,
+/// (the server returns fields this app does not model: password history,
 /// attachments, passkeys, reprompt…), so editing never silently drops them.
 public struct ItemDraft: Sendable, Equatable, Identifiable {
     public var id: String?
@@ -36,12 +36,12 @@ public struct ItemDraft: Sendable, Equatable, Identifiable {
         organizationId = item.organizationId
         username = item.login?.username ?? ""
         password = item.login?.password ?? ""
-        totp = item.login?.totp ?? ""
+        totp = item.authenticatorKey ?? ""
         let u = (item.login?.uris ?? []).compactMap { $0.uri }
         uris = u.isEmpty ? [""] : u
         card = item.card ?? CardData()
         identity = item.identity ?? IdentityData()
-        fields = (item.fields ?? []).filter { $0.type != .linked }
+        fields = (item.fields ?? []).filter { $0.type != .linked && !TOTPStorage.isKeyField($0) } // the key has its own input
     }
 
     public var isNew: Bool { id == nil }
@@ -57,11 +57,6 @@ public struct ItemDraft: Sendable, Equatable, Identifiable {
 
     // MARK: JSON
 
-    private static func nullable(_ s: String?) -> Any {
-        guard let s, !s.trimmingCharacters(in: .whitespaces).isEmpty else { return NSNull() }
-        return s
-    }
-
     private static func merged(_ base: Any?, _ values: [String: Any]) -> [String: Any] {
         var out = (base as? [String: Any]) ?? [:]
         for (k, v) in values { out[k] = v }
@@ -69,11 +64,26 @@ public struct ItemDraft: Sendable, Equatable, Identifiable {
     }
 
     /// The item JSON to send: `original` (when editing) with this draft laid over it.
+    /// `transform` is applied to every user-text string (name, notes, username, password,
+    /// URIs, card/identity values, custom fields). Identity for plaintext (demo, tests);
+    /// the native client passes an encrypter, since Bitwarden stores each field as an EncString.
     public func json(merging original: [String: Any]? = nil) -> [String: Any] {
+        // The identity transform cannot throw.
+        // swiftlint:disable:next force_try
+        try! json(merging: original, totpInField: false, transform: { $0 })
+    }
+
+    /// `totpInField`: store the authenticator key in the "VaultBar 2FA" hidden field instead of `login.totp`
+    /// (free Bitwarden accounts can't keep `login.totp`).
+    public func json(merging original: [String: Any]?, totpInField: Bool = false, transform: (String) throws -> String) throws -> [String: Any] {
+        func text(_ s: String?) throws -> Any {
+            guard let s, !s.trimmingCharacters(in: .whitespaces).isEmpty else { return NSNull() }
+            return try transform(s)
+        }
         var out = original ?? [:]
         out["type"] = type.rawValue
-        out["name"] = name.trimmingCharacters(in: .whitespaces)
-        out["notes"] = Self.nullable(notes)
+        out["name"] = try transform(name.trimmingCharacters(in: .whitespaces))
+        out["notes"] = try text(notes)
         out["favorite"] = favorite
         out["folderId"] = folderId ?? NSNull()
         if original == nil {
@@ -89,43 +99,49 @@ public struct ItemDraft: Sendable, Equatable, Identifiable {
                 let uri = raw.trimmingCharacters(in: .whitespaces)
                 guard !uri.isEmpty else { continue }
                 var entry = i < oldURIs.count ? oldURIs[i] : ["match": NSNull()]
-                entry["uri"] = uri
+                entry["uri"] = try transform(uri)
+                if entry["uriChecksum"] != nil { entry["uriChecksum"] = NSNull() } // stale once the URI changes
                 uriList.append(entry)
             }
             out["login"] = Self.merged(original?["login"], [
-                "username": Self.nullable(username),
-                "password": Self.nullable(password),
-                "totp": Self.nullable(totp.trimmingCharacters(in: .whitespaces)),
+                "username": try text(username),
+                "password": try text(password),
+                "totp": totpInField ? NSNull() : try text(totp.trimmingCharacters(in: .whitespaces)),
                 "uris": uriList,
             ])
         case .secureNote:
             out["secureNote"] = Self.merged(original?["secureNote"], ["type": 0])
         case .card:
             out["card"] = Self.merged(original?["card"], [
-                "cardholderName": Self.nullable(card.cardholderName), "brand": Self.nullable(card.brand),
-                "number": Self.nullable(card.number), "expMonth": Self.nullable(card.expMonth),
-                "expYear": Self.nullable(card.expYear), "code": Self.nullable(card.code),
+                "cardholderName": try text(card.cardholderName), "brand": try text(card.brand),
+                "number": try text(card.number), "expMonth": try text(card.expMonth),
+                "expYear": try text(card.expYear), "code": try text(card.code),
             ])
         case .identity:
             let i = identity
             out["identity"] = Self.merged(original?["identity"], [
-                "title": Self.nullable(i.title), "firstName": Self.nullable(i.firstName),
-                "middleName": Self.nullable(i.middleName), "lastName": Self.nullable(i.lastName),
-                "address1": Self.nullable(i.address1), "address2": Self.nullable(i.address2),
-                "address3": Self.nullable(i.address3), "city": Self.nullable(i.city),
-                "state": Self.nullable(i.state), "postalCode": Self.nullable(i.postalCode),
-                "country": Self.nullable(i.country), "company": Self.nullable(i.company),
-                "email": Self.nullable(i.email), "phone": Self.nullable(i.phone), "ssn": Self.nullable(i.ssn),
-                "username": Self.nullable(i.username), "passportNumber": Self.nullable(i.passportNumber),
-                "licenseNumber": Self.nullable(i.licenseNumber),
+                "title": try text(i.title), "firstName": try text(i.firstName),
+                "middleName": try text(i.middleName), "lastName": try text(i.lastName),
+                "address1": try text(i.address1), "address2": try text(i.address2),
+                "address3": try text(i.address3), "city": try text(i.city),
+                "state": try text(i.state), "postalCode": try text(i.postalCode),
+                "country": try text(i.country), "company": try text(i.company),
+                "email": try text(i.email), "phone": try text(i.phone), "ssn": try text(i.ssn),
+                "username": try text(i.username), "passportNumber": try text(i.passportNumber),
+                "licenseNumber": try text(i.licenseNumber),
             ])
         }
 
         // Linked custom fields are not editable here; keep them as they were.
         let linked = ((original?["fields"] as? [[String: Any]]) ?? []).filter { ($0["type"] as? Int) == 3 }
-        let editable: [[String: Any]] = fields.compactMap { f in
-            guard let name = f.name?.trimmingCharacters(in: .whitespaces), !name.isEmpty else { return nil }
-            return ["name": name, "value": f.value ?? "", "type": (f.type ?? .text).rawValue, "linkedId": NSNull()]
+        var editable: [[String: Any]] = []
+        for f in fields {
+            guard let name = f.name?.trimmingCharacters(in: .whitespaces), !name.isEmpty else { continue }
+            editable.append(["name": try transform(name), "value": try text(f.value ?? "") , "type": (f.type ?? .text).rawValue, "linkedId": NSNull()])
+        }
+        let key = totp.trimmingCharacters(in: .whitespaces)
+        if totpInField, type == .login, !key.isEmpty {
+            editable.append(["name": try transform(TOTPStorage.fieldName), "value": try transform(key), "type": CustomField.Kind.hidden.rawValue, "linkedId": NSNull()])
         }
         out["fields"] = editable + linked
         return out

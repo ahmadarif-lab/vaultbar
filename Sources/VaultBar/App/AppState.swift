@@ -4,7 +4,7 @@ import VaultKit
 
 @MainActor @Observable
 final class AppState {
-    enum Phase { case checking, cliMissing, needsSetup, locked, unlocked }
+    enum Phase { case checking, needsSetup, locked, unlocked }
     enum Tab: CaseIterable { case vault, generator, authenticator, settings }
     enum ListSection: String { case favorites, authenticator, all, results }
     enum FolderFilter: Hashable { case all, none, folder(String) }
@@ -44,6 +44,8 @@ final class AppState {
     // Editing, deleting
     var editor: ItemDraft?
     var editorError: String?
+    /// Opening the editor from the 2FA tab: the authenticator-key field takes focus first.
+    var editorFocusesKey = false
     var isSaving = false
     var pendingDeleteID: String?
 
@@ -53,6 +55,10 @@ final class AppState {
     var isRecordingHotkey = false { didSet { settings.onHotkeyChanged?() } }
 
     var lastSync: Date?
+    var importReport: ImportReport?
+    var importError: String?
+    /// While a file panel is up, closing the popover must not hide the whole app (that would hide the panel).
+    var keepAppActive = false
 
     // Accounts screen / add-account flow
     var showAccounts = false
@@ -68,10 +74,8 @@ final class AppState {
     /// Bumped every time the popover opens so the search field refocuses.
     var focusToken = 0
 
-    @ObservationIgnored private(set) var cli: BWCLI?
-    @ObservationIgnored private(set) var bwExecutable: URL?
+    @ObservationIgnored let secrets: SecretStore = KeychainSecretStore()
     @ObservationIgnored private var session: VaultSession?
-    @ObservationIgnored private var bw: BWSession?
     @ObservationIgnored private var lastActivity = Date()
     @ObservationIgnored private var timers: [Timer] = []
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
@@ -108,44 +112,34 @@ final class AppState {
             lockChanged?(false)
             return
         }
-        BWServe.killStaleServer()
-        await recheckCLI()
-    }
-
-    func recheckCLI() async {
-        guard let exe = BWCLI.locate() else {
-            phase = .cliMissing
-            return
-        }
-        bwExecutable = exe
-        guard let account = settings.activeAccount else {
-            cli = nil
-            phase = .needsSetup // nobody logged in yet
+        // Accounts without a stored key record (e.g. from the first, bw-based builds) cannot be unlocked.
+        for account in settings.accounts where AccountStorage(directory: account.dataDirectory).loadRecord() == nil { forget(account) }
+        if settings.activeAccount == nil {
+            phase = .needsSetup
             openSetup?()
-            return
-        }
-        let cli = BWCLI(executable: exe, dataDirectory: account.dataDirectory)
-        self.cli = cli
-        do {
-            let status = try await cli.status()
-            if status.state == .unauthenticated {
-                // The account's CLI data is gone (logged out elsewhere): forget it.
-                forget(account)
-                await recheckCLI()
-            } else {
-                phase = .locked
-                lockChanged?(true)
-            }
-        } catch {
-            phase = .locked // CLI hiccup: let unlock report the real error
+        } else {
+            phase = .locked
             lockChanged?(true)
         }
     }
 
-    /// Removes an account from the list (and its Touch ID item and data folder).
+    /// Stable id of this installation, sent to the server as the device identifier.
+    var deviceInfo: DeviceInfo {
+        let key = "deviceIdentifier"
+        let id = UserDefaults.standard.string(forKey: key) ?? {
+            let new = UUID().uuidString
+            UserDefaults.standard.set(new, forKey: key)
+            return new
+        }()
+        return DeviceInfo(identifier: id)
+    }
+
+    func api(for account: Account) -> BitwardenAPI { BitwardenAPI(server: account.server, device: deviceInfo) }
+
+    /// Removes an account from the list, with its cached vault, refresh token and Touch ID item.
     private func forget(_ account: Account) {
         BiometricUnlock.remove(slot: account.biometricSlot)
-        if account.id != Account.legacyID { try? FileManager.default.removeItem(at: account.dataDirectory.deletingLastPathComponent()) }
+        NativeSession.forget(account, secrets: secrets)
         settings.accounts.removeAll { $0.id == account.id }
         if settings.activeAccountID == account.id { settings.activeAccountID = settings.accounts.first?.id }
     }
@@ -161,10 +155,9 @@ final class AppState {
             if isDemo {
                 try await session?.unlock(password: password)
             } else {
-                guard let cli else { phase = .cliMissing; return }
-                let s = BWSession(cli: cli)
-                try await s.unlock(password: password)
-                bw = s
+                guard let account = settings.activeAccount else { phase = .needsSetup; return }
+                let s = NativeSession(account: account, secrets: secrets, api: api(for: account))
+                try await s.unlock(password: password) // works offline from the encrypted cache
                 session = s
             }
             await enterUnlocked()
@@ -179,19 +172,13 @@ final class AppState {
         }
     }
 
-    /// Used by the setup flow, which already holds a session key from `bw login`.
+    /// Used by the setup flow once the server accepted the login (the session is unlocked and synced).
     /// Makes `account` the active one; any other account that was open is locked first.
-    func completeLogin(account: Account, sessionKey: String) async throws {
-        guard let exe = bwExecutable else { throw VaultError.cliMissing }
-        let newCLI = BWCLI(executable: exe, dataDirectory: account.dataDirectory)
-        let s = BWSession(cli: newCLI)
-        try await s.start(sessionKey: sessionKey) // may throw: only then is the account recorded
+    func completeLogin(account: Account, session newSession: NativeSession) async {
         if phase == .unlocked { await lock() }
         if !settings.accounts.contains(where: { $0.id == account.id }) { settings.accounts.append(account) }
         settings.activeAccountID = account.id
-        cli = newCLI
-        bw = s
-        session = s
+        session = newSession
         addingAccount = false
         showAccounts = false
         await enterUnlocked()
@@ -262,14 +249,13 @@ final class AppState {
         lockChanged?(true)
         if announce { showToast?(t("toast.locked")) }
         await session?.lock()
-        if !isDemo { session = nil; bw = nil }
+        if !isDemo { session = nil }
     }
 
     func lockNow() { Task { await lock(announce: true) } }
 
     func shutdown() {
         if isDemo { BiometricUnlock.remove(slot: BiometricUnlock.demoSlot) } // leave no demo item in the Keychain
-        bw?.stopServeNow()
         Clipboard.clearIfOurs()
     }
 
@@ -280,10 +266,7 @@ final class AppState {
         guard let account = settings.activeAccount else { return }
         entries = []
         await session?.lock()
-        bw?.stopServeNow()
-        try? await cli?.logout()
         session = nil
-        bw = nil
         query = ""
         detailEntryID = nil
         showAccounts = false
@@ -291,9 +274,10 @@ final class AppState {
         tab = .vault
         forget(account)
         if settings.activeAccount != nil {
-            await recheckCLI() // next account, locked
+            phase = .locked // next account
+            lockChanged?(true)
+            focusToken += 1
         } else {
-            cli = nil
             phase = .needsSetup
             lockChanged?(true)
             openSetup?()
@@ -330,9 +314,8 @@ final class AppState {
             demoTouchID = false
             BiometricUnlock.remove(slot: BiometricUnlock.demoSlot)
         } else {
-            guard let account = settings.accounts.first(where: { $0.id == id }), let exe = bwExecutable else { return }
+            guard settings.accounts.contains(where: { $0.id == id }) else { return }
             settings.activeAccountID = id
-            cli = BWCLI(executable: exe, dataDirectory: account.dataDirectory)
         }
         phase = .locked
         lockMessage = nil
@@ -546,11 +529,11 @@ final class AppState {
         settings.hotkeyEnabled = true
     }
 
-    /// Verifies the master password with `bw`, then stores it behind Touch ID. Returns an error message or nil.
+    /// Verifies the master password against the stored key, then stores it behind Touch ID. Returns an error message or nil.
     func enableTouchID(password: String) async -> String? {
-        guard let cli, !password.isEmpty else { return t("error.generic") }
+        guard let account = settings.activeAccount, !password.isEmpty else { return t("error.generic") }
         do {
-            _ = try await cli.unlock(password: password) // proves the password before it is stored
+            try await NativeSession.verifyPassword(password, for: account) // proves it before it is stored
             try BiometricUnlock.store(password: password, slot: biometricSlot)
             settings.touchIDEnabled = true
             return nil
@@ -558,6 +541,85 @@ final class AppState {
             return t("lock.wrongPassword")
         } catch {
             return t("error.generic")
+        }
+    }
+
+    // MARK: Import / export (Bitwarden .json)
+
+    func pickAndImport() async {
+        keepAppActive = true
+        closePopover?()
+        NSApp.activate(ignoringOtherApps: true)
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.json]
+        panel.allowsMultipleSelection = false
+        panel.message = t("data.importPanel")
+        let ok = panel.runModal() == .OK
+        keepAppActive = false
+        if ok, let url = panel.url { await importFile(at: url) }
+        openSettingsTab()
+    }
+
+    func importFile(at url: URL) async {
+        importReport = nil
+        importError = nil
+        guard let session else { return }
+        do {
+            let data = try Data(contentsOf: url)
+            let plan = try BitwardenFile.parse(data)
+            let existing = try await session.snapshot()
+            let (request, report) = BitwardenFile.prepare(plan, existing: existing)
+            if !request.entries.isEmpty || !request.newFolders.isEmpty { try await session.importEntries(request) }
+            await loadVault()
+            lastSync = Date()
+            importReport = report
+            noteActivity()
+        } catch ImportError.encrypted {
+            importError = t("data.importEncrypted")
+        } catch ImportError.notBitwardenExport {
+            importError = t("data.importUnknown")
+        } catch {
+            importError = t("data.importFailed", describe(error))
+        }
+    }
+
+    /// The vault as a Bitwarden `.json` export (personal items only) and how many items it holds.
+    func exportJSON() throws -> (data: Data, count: Int) {
+        let items = entries.map(\.item).filter { $0.organizationId == nil }
+        return (try BitwardenFile.export(items: items, folders: folders), items.count)
+    }
+
+    /// Re-checks the master password, then asks where to save. Returns an error message, or nil (also when cancelled).
+    func exportVault(password: String) async -> String? {
+        if isDemo { guard !password.isEmpty else { return t("lock.wrongPassword") } }
+        else {
+            guard let account = settings.activeAccount else { return t("error.generic") }
+            do { try await NativeSession.verifyPassword(password, for: account) }
+            catch { return describe(error) }
+        }
+        do {
+            let (data, count) = try exportJSON()
+            keepAppActive = true
+            closePopover?()
+            NSApp.activate(ignoringOtherApps: true)
+            let panel = NSSavePanel()
+            panel.allowedContentTypes = [.json]
+            let stamp = DateFormatter()
+            stamp.dateFormat = "yyyyMMddHHmmss"
+            panel.nameFieldStringValue = "vaultbar_export_\(stamp.string(from: Date())).json"
+            panel.message = t("data.exportPanel")
+            let ok = panel.runModal() == .OK
+            keepAppActive = false
+            if ok, let url = panel.url {
+                try data.write(to: url, options: .atomic)
+                try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+                showToast?(t("toast.exported", count))
+            }
+            openSettingsTab()
+            return nil
+        } catch {
+            keepAppActive = false
+            return describe(error)
         }
     }
 
@@ -571,13 +633,30 @@ final class AppState {
         noteActivity()
     }
 
+    /// "Add" on the 2FA tab: a new login with the key field ready for pasting.
+    func beginAddAuthenticator() {
+        editor = ItemDraft(type: .login)
+        editorError = nil
+        editorFocusesKey = true
+        noteActivity()
+    }
+
+    /// Pasting an `otpauth://` link names the item and fills the username when they are still empty.
+    func authenticatorKeyChanged() {
+        guard var draft = editor, draft.type == .login, let totp = TOTP(parsing: draft.totp) else { return }
+        var changed = false
+        if draft.name.trimmingCharacters(in: .whitespaces).isEmpty, let issuer = totp.issuer { draft.name = issuer; changed = true }
+        if draft.username.isEmpty, let account = totp.account { draft.username = account; changed = true }
+        if changed { editor = draft }
+    }
+
     func beginEdit(_ e: VaultEntry) {
         editor = ItemDraft(item: e.item)
         editorError = nil
         noteActivity()
     }
 
-    func cancelEditor() { editor = nil; editorError = nil }
+    func cancelEditor() { editor = nil; editorError = nil; editorFocusesKey = false }
 
     func saveEditor() async {
         guard let draft = editor, !isSaving, let session else { return }
@@ -591,10 +670,14 @@ final class AppState {
         do {
             try await session.save(draft)
             editor = nil
+            editorFocusesKey = false
             noteActivity()
             await loadVault()
-            showToast?(t("toast.saved"))
+            showToast?(session.lastSaveUsedKeyField ? t("toast.savedKeyField") : t("toast.saved"))
             Task { await sync(silent: true) }
+        } catch VaultError.serverIgnored(let fields) {
+            await loadVault() // show what the server really has
+            editorError = t("edit.serverIgnored", fields.joined(separator: ", "))
         } catch {
             editorError = t("edit.saveFailed", (error as? VaultError)?.errorDescription ?? error.localizedDescription)
         }

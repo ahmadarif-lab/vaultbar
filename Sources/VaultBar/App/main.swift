@@ -7,11 +7,12 @@ let snapshotDir: URL? = args.firstIndex(of: "--snapshot-dir").flatMap { i in
     args.indices.contains(i + 1) ? URL(fileURLWithPath: args[i + 1]) : nil
 }
 let selfTest = args.contains("--selftest")
+let selfTestLive = args.contains("--selftest-live")
 let demo = args.contains("--demo") || snapshotDir != nil || selfTest
 
 MainActor.assumeIsolated {
     let app = NSApplication.shared
-    let delegate = AppDelegate(demo: demo, snapshotDir: snapshotDir, selfTest: selfTest)
+    let delegate = AppDelegate(demo: demo, snapshotDir: snapshotDir, selfTest: selfTest, selfTestLive: selfTestLive)
     app.delegate = delegate
     app.setActivationPolicy(.accessory)
     withExtendedLifetime(delegate) { app.run() }

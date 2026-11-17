@@ -70,7 +70,7 @@ extension VaultEntry {
         }
 
         let custom = (item.fields ?? []).enumerated().compactMap { (i, field) -> DetailField? in
-            guard field.type != .linked else { return nil }
+            guard field.type != .linked, !TOTPStorage.isKeyField(field) else { return nil }
             let name = field.name?.nonEmpty ?? "—"
             let value = field.type == .boolean ? ((field.value == "true") ? "✓" : "✗") : (field.value ?? "")
             guard !value.isEmpty else { return nil }
