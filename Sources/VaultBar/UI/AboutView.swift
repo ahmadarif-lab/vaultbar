@@ -35,9 +35,19 @@ struct AboutView: View {
                             Rectangle().fill(Theme.stroke).frame(height: 1)
                             row(t("about.server"), url)
                         }
-                        if let version = state.serverVersion {
+                        if !state.isDemo {
                             Rectangle().fill(Theme.stroke).frame(height: 1)
-                            row(t("about.serverVersion"), version)
+                            // The row is there from the start; the value fills in when the server answers.
+                            HStack {
+                                Text(t("about.serverVersion")).font(.system(size: 13)).foregroundStyle(Theme.textSecondary)
+                                Spacer(minLength: 8)
+                                if state.serverVersionLoading {
+                                    ProgressView().controlSize(.small).scaleEffect(0.7).frame(width: 16, height: 16)
+                                } else {
+                                    Text(state.serverVersion ?? "—").font(.system(size: 13)).foregroundStyle(Theme.textPrimary)
+                                }
+                            }
+                            .padding(.horizontal, 12).frame(height: 38)
                         }
                     }
                     .background(RoundedRectangle(cornerRadius: 9).fill(Theme.surface))

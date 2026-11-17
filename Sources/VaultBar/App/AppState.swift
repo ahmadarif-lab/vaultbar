@@ -65,6 +65,7 @@ final class AppState {
     var showFolders = false
     var showAbout = false
     var serverVersion: String?
+    var serverVersionLoading = false
     var folderError: String?
     var updateStatus: UpdateStatus = .idle
     var addingAccount = false
@@ -842,7 +843,11 @@ final class AppState {
         showAbout = true
         guard !isDemo, let account = settings.activeAccount else { return }
         serverVersion = nil
-        Task { serverVersion = await api(for: account).serverVersion() }
+        serverVersionLoading = true
+        Task {
+            serverVersion = await api(for: account).serverVersion()
+            serverVersionLoading = false
+        }
     }
 
     /// Plain-text summary for the About "Copy" button.
