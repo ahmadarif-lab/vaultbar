@@ -3,7 +3,7 @@
 # -> gh release create vX.Y.Z dist/VaultBar.dmg -> update version and sha256 below.
 cask "vaultbar" do
   version "0.1.0"
-  sha256 "REPLACE_WITH_SHA256_FROM_package_release.sh"
+  sha256 "4dacefd986704856010791e68af4d3e06d4807199a1ef7d836b00f7f5f6cb186"
 
   url "https://github.com/ahmadarif-lab/vaultbar/releases/download/v#{version}/VaultBar.dmg"
   name "VaultBar"
