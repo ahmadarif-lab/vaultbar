@@ -3,6 +3,10 @@ import Foundation
 /// Fake vault for `--demo`: screenshots and development without a real account.
 /// Every value here is invented; the TOTP secrets are throwaway test strings.
 public final class DemoSession: VaultSession, @unchecked Sendable {
+    private let lock = NSLock()
+    private var items = DemoSession.snapshot.items
+    private var counter = 0
+
     public init() {}
 
     public func unlock(password: String) async throws {
@@ -11,7 +15,45 @@ public final class DemoSession: VaultSession, @unchecked Sendable {
     }
     public func lock() async {}
     public func sync() async throws { try await Task.sleep(nanoseconds: 400_000_000) }
-    public func snapshot() async throws -> VaultSnapshot { Self.snapshot }
+    public func snapshot() async throws -> VaultSnapshot {
+        VaultSnapshot(items: lock.withLock { items }, folders: Self.snapshot.folders, organizations: Self.snapshot.organizations)
+    }
+
+    private func decode(_ json: [String: Any]) throws -> VaultItem {
+        try JSONDecoder().decode(VaultItem.self, from: JSONSerialization.data(withJSONObject: json))
+    }
+
+    public func save(_ draft: ItemDraft) async throws {
+        try lock.withLock {
+            if let id = draft.id, let i = items.firstIndex(where: { $0.id == id }) {
+                var json = draft.json()
+                json["id"] = id
+                json["organizationId"] = items[i].organizationId ?? NSNull()
+                items[i] = try decode(json)
+            } else {
+                counter += 1
+                var json = draft.json()
+                json["id"] = "demo-new-\(counter)"
+                items.append(try decode(json))
+            }
+        }
+    }
+
+    public func clone(id: String, nameSuffix: String) async throws {
+        try lock.withLock {
+            guard let original = items.first(where: { $0.id == id }) else { return }
+            if original.organizationId != nil { throw VaultError.organizationItem }
+            counter += 1
+            var copy = original
+            copy.id = "demo-new-\(counter)"
+            copy.name += nameSuffix
+            items.append(copy)
+        }
+    }
+
+    public func delete(id: String) async throws {
+        lock.withLock { items.removeAll { $0.id == id } }
+    }
 
     private static func login(_ id: String, _ name: String, user: String?, pass: String = "demo-password-1", totp: String? = nil,
                               uri: String? = nil, folder: String? = nil, fav: Bool = false, org: String? = nil,

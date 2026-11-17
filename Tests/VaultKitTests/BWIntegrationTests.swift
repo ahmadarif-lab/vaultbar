@@ -103,4 +103,44 @@ final class BWIntegrationTests: XCTestCase {
         let state = try await BWServeClient(baseURL: url).state()
         XCTAssertEqual(state, "locked")
     }
+
+    func testCreateEditCloneDelete() async throws {
+        _ = try await cli.login(email: "me@example.com", password: "correct-horse", twoFactor: nil)
+        let session = BWSession(cli: cli)
+        try await session.unlock(password: "correct-horse")
+        defer { Task { await session.lock() } }
+
+        // create
+        var d = ItemDraft(type: .login, folderId: "f1")
+        d.name = "Created"; d.username = "new@example.com"; d.password = "s3cret"; d.uris = ["https://created.test"]
+        try await session.save(d)
+        var snap = try await session.snapshot()
+        let created = try XCTUnwrap(snap.items.first { $0.name == "Created" })
+        XCTAssertEqual(created.folderId, "f1")
+        XCTAssertEqual(created.login?.password, "s3cret")
+
+        // edit: unknown server-side fields (passwordHistory in the fake's GET) are merged, new values win
+        var edit = ItemDraft(item: created)
+        edit.name = "Renamed"; edit.password = "changed"
+        try await session.save(edit)
+        snap = try await session.snapshot()
+        XCTAssertFalse(snap.items.contains { $0.name == "Created" })
+        let renamed = try XCTUnwrap(snap.items.first { $0.id == created.id })
+        XCTAssertEqual(renamed.name, "Renamed")
+        XCTAssertEqual(renamed.login?.password, "changed")
+        XCTAssertEqual(renamed.login?.username, "new@example.com")
+
+        // clone
+        try await session.clone(id: created.id, nameSuffix: " - Clone")
+        snap = try await session.snapshot()
+        let copy = try XCTUnwrap(snap.items.first { $0.name == "Renamed - Clone" })
+        XCTAssertNotEqual(copy.id, created.id)
+        XCTAssertEqual(copy.login?.password, "changed")
+
+        // delete
+        try await session.delete(id: copy.id)
+        snap = try await session.snapshot()
+        XCTAssertFalse(snap.items.contains { $0.id == copy.id })
+        do { try await session.delete(id: copy.id); XCTFail("deleting twice must fail") } catch {}
+    }
 }

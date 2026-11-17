@@ -11,9 +11,21 @@ final class AppSettings {
     private let defaults = UserDefaults.standard
 
     var language: Language { didSet { defaults.set(language.rawValue, forKey: "language") } }
-    var server: ServerChoice? { didSet { defaults.set(server.flatMap { try? JSONEncoder().encode($0) }, forKey: "server") } }
-    var accountEmail: String? { didSet { defaults.set(accountEmail, forKey: "accountEmail") } }
-    var touchIDEnabled: Bool { didSet { defaults.set(touchIDEnabled, forKey: "touchIDEnabled") } }
+    /// Logged-in accounts (non-secret facts only) and which one is active.
+    var accounts: [Account] { didSet { defaults.set(try? JSONEncoder().encode(accounts), forKey: "accounts") } }
+    var activeAccountID: String? { didSet { defaults.set(activeAccountID, forKey: "activeAccountID") } }
+
+    var activeAccount: Account? { accounts.first { $0.id == activeAccountID } }
+    var server: ServerChoice? { activeAccount?.server }
+    var accountEmail: String? { activeAccount?.email }
+    /// Touch ID is opt-in per account.
+    var touchIDEnabled: Bool {
+        get { activeAccount?.touchID ?? false }
+        set {
+            guard let i = accounts.firstIndex(where: { $0.id == activeAccountID }) else { return }
+            accounts[i].touchID = newValue
+        }
+    }
     /// Minutes; 0 means never.
     var autoLockMinutes: Int { didSet { defaults.set(autoLockMinutes, forKey: "autoLockMinutes") } }
     /// Seconds; 0 means never clear.
@@ -31,9 +43,17 @@ final class AppSettings {
     private init() {
         let d = UserDefaults.standard
         language = Language(rawValue: d.string(forKey: "language") ?? "") ?? .en
-        server = d.data(forKey: "server").flatMap { try? JSONDecoder().decode(ServerChoice.self, from: $0) }
-        accountEmail = d.string(forKey: "accountEmail")
-        touchIDEnabled = d.bool(forKey: "touchIDEnabled")
+        var list = d.data(forKey: "accounts").flatMap { try? JSONDecoder().decode([Account].self, from: $0) } ?? []
+        var active = d.string(forKey: "activeAccountID")
+        // First builds had a single account (server + email keys): carry it over, same `bw` folder.
+        if list.isEmpty, let email = d.string(forKey: "accountEmail"),
+           let server = d.data(forKey: "server").flatMap({ try? JSONDecoder().decode(ServerChoice.self, from: $0) }) {
+            list = [Account(id: Account.legacyID, email: email, server: server, touchID: false)]
+            active = Account.legacyID
+        }
+        if active == nil || !list.contains(where: { $0.id == active }) { active = list.first?.id }
+        accounts = list
+        activeAccountID = active
         autoLockMinutes = d.object(forKey: "autoLockMinutes") as? Int ?? 15
         clipboardSeconds = d.object(forKey: "clipboardSeconds") as? Int ?? 30
         hotkeyEnabled = d.object(forKey: "hotkeyEnabled") as? Bool ?? true
@@ -43,11 +63,6 @@ final class AppSettings {
         hideOrgItems = d.bool(forKey: "hideOrgItems")
     }
 
-    func clearAccount() {
-        server = nil
-        accountEmail = nil
-        touchIDEnabled = false
-    }
 }
 
 /// Localised string lookup. Reads `AppSettings.language`, so SwiftUI views that

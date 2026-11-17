@@ -6,14 +6,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let state: AppState
     private var statusBar: StatusBarController?
     private let hotkey = GlobalHotkey()
-    private var settingsWindow: NSWindow?
-    private var setupWindow: NSWindow?
 
     private let snapshotDir: URL?
 
-    init(demo: Bool, snapshotDir: URL? = nil) {
+    private let selfTest: Bool
+
+    init(demo: Bool, snapshotDir: URL? = nil, selfTest: Bool = false) {
         state = AppState(demo: demo)
         self.snapshotDir = snapshotDir
+        self.selfTest = selfTest
         super.init()
     }
 
@@ -26,7 +27,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let bar = StatusBarController(state: state)
         statusBar = bar
-        state.openSetup = { [weak self] in self?.openSetupWindow() }
+        state.openSetup = { [weak bar] in bar?.show() }
+        state.requestShowPopover = { [weak bar] in bar?.show() }
 
         hotkey.onPress = { [weak bar] in bar?.toggle() }
         AppSettings.shared.onHotkeyChanged = { [weak self] in self?.applyHotkey() }
@@ -34,6 +36,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         Task {
             await state.bootstrap()
+            if selfTest {
+                let ok = await SelfTest.run(state: state, bar: bar)
+                exit(ok ? 0 : 1)
+            }
             if let dir = snapshotDir {
                 await Snapshot.run(state: state, into: dir)
                 NSApp.terminate(nil)
@@ -54,52 +60,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func applyHotkey() {
         let s = AppSettings.shared
-        if s.hotkeyEnabled { hotkey.register(keyCode: s.hotkeyKeyCode, modifiers: s.hotkeyModifiers) } else { hotkey.unregister() }
-    }
-
-    // MARK: Windows
-
-    @objc func openSettings() {
-        statusBar?.close()
-        if settingsWindow == nil {
-            let w = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(state: state)))
-            w.styleMask = [.titled, .closable]
-            w.isReleasedWhenClosed = false
-            settingsWindow = w
-        }
-        settingsWindow?.title = t("settings.title")
-        present(settingsWindow)
-    }
-
-    @objc func openSetupWindow() {
-        statusBar?.close()
-        guard setupWindow == nil || !(setupWindow?.isVisible ?? false) else { present(setupWindow); return }
-        let model = SetupModel(state: state)
-        let w = NSWindow(contentViewController: NSHostingController(rootView: SetupView(model: model)))
-        w.styleMask = [.titled, .closable]
-        w.title = t("setup.title")
-        w.isReleasedWhenClosed = false
-        model.onFinished = { [weak self, weak w] in
-            w?.close()
-            self?.setupWindow = nil
-            self?.statusBar?.show()
-        }
-        setupWindow = w
-        present(w)
-    }
-
-    private func present(_ window: NSWindow?) {
-        guard let window else { return }
-        window.center()
-        NSApp.activate(ignoringOtherApps: true)
-        window.makeKeyAndOrderFront(nil)
+        if s.hotkeyEnabled && !state.isRecordingHotkey { hotkey.register(keyCode: s.hotkeyKeyCode, modifiers: s.hotkeyModifiers) } else { hotkey.unregister() }
     }
 
     // MARK: Menu and single instance
 
     /// An accessory app has no menu bar, but AppKit still resolves ⌘C/⌘V/⌘A
     /// through the main menu: without an Edit menu, pasting into the password
-    /// fields does nothing.
+    /// fields does nothing. (There are no separate windows: everything, including
+    /// setup and settings, lives in the popover.)
     private static func mainMenu() -> NSMenu {
         let main = NSMenu()
         let appItem = NSMenuItem()

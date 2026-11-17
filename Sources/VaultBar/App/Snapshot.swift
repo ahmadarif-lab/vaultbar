@@ -12,30 +12,56 @@ enum Snapshot {
 
         for dark in [false, true] {
             let suffix = dark ? "-dark" : ""
+            func popover(_ name: String) async {
+                await shot(PopoverView(state: state), size: pop, dark: dark, name: "\(name)\(suffix)", dir: dir)
+            }
+            state.tab = .vault
             state.query = ""
             state.detailEntryID = nil
-            await shot(PopoverView(state: state), size: pop, dark: dark, name: "list\(suffix)", dir: dir)
+            await popover("list")
 
             state.query = "git"
-            await shot(PopoverView(state: state), size: pop, dark: dark, name: "search\(suffix)", dir: dir)
+            await popover("search")
 
             state.query = ""
             if let github = state.entries.first(where: { $0.id == "d01" }) { state.openDetail(github) }
-            await shot(PopoverView(state: state), size: pop, dark: dark, name: "detail\(suffix)", dir: dir)
+            await popover("detail")
             state.closeDetail()
 
+            state.tab = .generator
+            await popover("generator")
+
+            state.tab = .authenticator
+            await popover("twofa")
+
+            state.tab = .settings
+            await popover("settings-tab")
+
+            state.tab = .vault
+            state.showAccounts = true
+            await popover("accounts")
+            state.showAccounts = false
+
+            if let github = state.entries.first(where: { $0.id == "d01" }) { state.beginEdit(github) }
+            await popover("editor")
+            state.cancelEditor()
+
+            if let router = state.entries.first(where: { $0.id == "d09" }) { state.requestDelete(router) }
+            await popover("delete")
+            state.cancelDelete()
+
             await state.lock()
-            await shot(PopoverView(state: state), size: pop, dark: dark, name: "locked\(suffix)", dir: dir)
+            await popover("locked")
             await state.unlock(password: "demo")
         }
 
         settings.language = .id
+        state.tab = .vault
         await shot(PopoverView(state: state), size: pop, dark: false, name: "list-id", dir: dir)
         settings.language = .en
 
-        await shot(SettingsView(state: state), size: CGSize(width: 460, height: 520), dark: false, name: "settings", dir: dir, framed: false)
-        let model = SetupModel(state: state)
-        await shot(SetupView(model: model), size: CGSize(width: 420, height: 460), dark: false, name: "setup", dir: dir, framed: false)
+        await shot(ZStack { Theme.background; NeedsSetupView(state: state) }.frame(width: PopoverMetrics.width, height: PopoverMetrics.height),
+                   size: pop, dark: false, name: "setup", dir: dir)
 
         print("Snapshots written to \(dir.path)")
     }

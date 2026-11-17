@@ -25,12 +25,25 @@ final class SetupModel {
     var enableLoginItem = true
 
     private var sessionKey: String?
+    private var pendingAccount: Account?
     private let state: AppState
-    var onFinished: (() -> Void)?
+    /// Logging in as an additional account: the server step shows Back, and the new
+    /// account gets its own `bw` data folder.
+    let isAdding: Bool
+    var onCancel: (() -> Void)?
+    private let accountID = UUID().uuidString
+    private let cli: BWCLI?
 
-    init(state: AppState) { self.state = state }
+    init(state: AppState, adding: Bool = false) {
+        self.state = state
+        self.isAdding = adding
+        let folder = Account(id: accountID, email: "", server: .bitwardenUS).dataDirectory
+        self.cli = state.bwExecutable.map { BWCLI(executable: $0, dataDirectory: folder) }
+    }
 
     var touchIDAvailable: Bool { BiometricUnlock.isAvailable }
+
+    private var chosenServer: ServerChoice?
 
     private var server: ServerChoice? {
         switch kind {
@@ -41,7 +54,7 @@ final class SetupModel {
     }
 
     func continueFromServer() async {
-        guard let server, let cli = state.cli else {
+        guard let server, let cli else {
             error = t("setup.serverURLInvalid")
             return
         }
@@ -51,7 +64,7 @@ final class SetupModel {
             // `bw config server` is refused while logged in.
             if let status = try? await cli.status(), status.state != .unauthenticated { try await cli.logout() }
             try await cli.configureServer(server)
-            state.settings.server = server
+            self.chosenServer = server
             step = .login
         } catch {
             self.error = (error as? VaultError)?.errorDescription ?? t("error.generic")
@@ -59,7 +72,7 @@ final class SetupModel {
     }
 
     func login() async {
-        guard let cli = state.cli else { return }
+        guard let cli, let chosenServer else { return }
         busy = true; error = nil
         defer { busy = false }
         do {
@@ -72,7 +85,8 @@ final class SetupModel {
                 key = try await cli.login(email: email.trimmingCharacters(in: .whitespaces), password: password, twoFactor: factor)
             }
             sessionKey = key
-            state.settings.accountEmail = email.trimmingCharacters(in: .whitespaces)
+            let mail = useAPIKey ? (email.isEmpty ? clientID : email) : email.trimmingCharacters(in: .whitespaces)
+            pendingAccount = Account(id: accountID, email: mail, server: chosenServer)
             step = .finish
         } catch VaultError.twoFactorRequired {
             needsTwoFactor = true
@@ -85,19 +99,22 @@ final class SetupModel {
     }
 
     func finish() async {
-        guard let sessionKey else { return }
+        guard let sessionKey, var account = pendingAccount else { return }
         busy = true; error = nil
         defer { busy = false }
+        var wantsTouchID = false
         if enableTouchID && touchIDAvailable && !state.isDemo {
-            if (try? BiometricUnlock.store(password: password)) != nil { state.settings.touchIDEnabled = true }
+            wantsTouchID = (try? BiometricUnlock.store(password: password, slot: account.biometricSlot)) != nil
         }
+        account.touchID = wantsTouchID
         LoginItem.setEnabled(enableLoginItem)
         do {
-            try await state.finishLogin(sessionKey: sessionKey)
+            try await state.completeLogin(account: account, sessionKey: sessionKey)
             self.sessionKey = nil
+            pendingAccount = nil
             password = ""; twoFactorCode = ""; clientSecret = ""
-            onFinished?()
         } catch {
+            BiometricUnlock.remove(slot: account.biometricSlot)
             self.error = (error as? VaultError)?.errorDescription ?? t("error.generic")
         }
     }
@@ -124,9 +141,8 @@ struct SetupView: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(24)
-        .frame(width: 420, height: 460, alignment: .topLeading)
-        .background(Theme.background)
+        .padding(.horizontal, 22).padding(.top, 26).padding(.bottom, 16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private var serverStep: some View {
@@ -142,8 +158,13 @@ struct SetupView: View {
                 Text(t("setup.serverURLHint")).font(.system(size: 11)).foregroundStyle(Theme.textSecondary)
             }
             Spacer().frame(height: 6)
-            Button(model.busy ? "…" : t("setup.next")) { Task { await model.continueFromServer() } }
-                .buttonStyle(PrimaryButtonStyle(enabled: !model.busy)).disabled(model.busy)
+            HStack(spacing: 8) {
+                if model.isAdding {
+                    Button(t("setup.back")) { model.onCancel?() }.buttonStyle(SecondaryButtonStyle())
+                }
+                Button(model.busy ? "…" : t("setup.next")) { Task { await model.continueFromServer() } }
+                    .buttonStyle(PrimaryButtonStyle(enabled: !model.busy)).disabled(model.busy)
+            }
         }
     }
 

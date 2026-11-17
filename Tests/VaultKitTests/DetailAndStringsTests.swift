@@ -64,3 +64,33 @@ final class DetailAndStringsTests: XCTestCase {
         XCTAssertEqual(ServerChoice.selfHosted("https://v.example.com/").iconURL(forDomain: "a.com")?.absoluteString, "https://v.example.com/icons/a.com/icon.png")
     }
 }
+
+final class AccountTests: XCTestCase {
+    func testInitials() {
+        XCTAssertEqual(Account.initials(forEmail: "alice.anderson@example.test"), "AA")
+        XCTAssertEqual(Account.initials(forEmail: "alice@example.com"), "AL")
+        XCTAssertEqual(Account.initials(forEmail: "bob_smith@x.io"), "BS")
+        XCTAssertEqual(Account.initials(forEmail: "123@x.io"), "?")
+    }
+
+    func testHostPerServer() {
+        XCTAssertEqual(Account(email: "a@b.c", server: .bitwardenUS).host, "bitwarden.com")
+        XCTAssertEqual(Account(email: "a@b.c", server: .bitwardenEU).host, "bitwarden.eu")
+        XCTAssertEqual(Account(email: "a@b.c", server: .selfHosted("https://vault.example.com:8443/")).host, "vault.example.com")
+    }
+
+    func testEachAccountHasItsOwnDataFolderAndLegacyKeepsTheOldOne() {
+        let a = Account(email: "a@b.c", server: .bitwardenUS)
+        let b = Account(email: "b@b.c", server: .bitwardenUS)
+        XCTAssertNotEqual(a.dataDirectory, b.dataDirectory)
+        XCTAssertTrue(a.dataDirectory.path.contains("/accounts/\(a.id)/bw"))
+        XCTAssertEqual(Account(id: Account.legacyID, email: "x@y.z", server: .bitwardenUS).dataDirectory, BWCLI.defaultDataDirectory)
+        XCTAssertNotEqual(a.biometricSlot, b.biometricSlot)
+    }
+
+    func testCodableRoundTrip() throws {
+        let list = [Account(email: "a@b.c", server: .selfHosted("https://v.example"), touchID: true), Account(email: "b@b.c", server: .bitwardenEU)]
+        let back = try JSONDecoder().decode([Account].self, from: JSONEncoder().encode(list))
+        XCTAssertEqual(back, list)
+    }
+}

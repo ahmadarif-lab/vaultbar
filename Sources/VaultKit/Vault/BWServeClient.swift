@@ -31,11 +31,11 @@ public struct BWServeClient: Sendable {
         init(from decoder: Decoder) throws { value = try? T(from: decoder) }
     }
 
-    private func request(_ method: String, _ path: String) async throws -> Data {
+    private func request(_ method: String, _ path: String, body: Data? = nil) async throws -> Data {
         var req = URLRequest(url: baseURL.appendingPathComponent(path))
         req.httpMethod = method
-        if method == "POST" {
-            req.httpBody = Data("{}".utf8)
+        if method == "POST" || method == "PUT" {
+            req.httpBody = body ?? Data("{}".utf8)
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
         let (data, response) = try await session.data(for: req)
@@ -70,6 +70,40 @@ public struct BWServeClient: Sendable {
         let data = try await request("POST", "sync")
         let env = try JSONDecoder().decode(Envelope<Empty>.self, from: data)
         guard env.success else { throw VaultError.commandFailed(env.message ?? "Sync failed.") }
+    }
+
+    // MARK: Item writes
+
+    private func itemObject(_ data: Data) throws -> [String: Any] {
+        guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw VaultError.badResponse }
+        guard (root["success"] as? Bool) == true else {
+            throw VaultError.commandFailed((root["message"] as? String) ?? "Request failed.")
+        }
+        return (root["data"] as? [String: Any]) ?? [:]
+    }
+
+    private func encode(_ json: [String: Any]) throws -> Data {
+        guard JSONSerialization.isValidJSONObject(json) else { throw VaultError.badResponse }
+        return try JSONSerialization.data(withJSONObject: json)
+    }
+
+    /// The item exactly as `bw` holds it (every field, including ones VaultBar does not model).
+    public func rawItem(id: String) async throws -> [String: Any] {
+        try itemObject(await request("GET", "object/item/\(id)"))
+    }
+
+    @discardableResult
+    public func createItem(_ json: [String: Any]) async throws -> [String: Any] {
+        try itemObject(await request("POST", "object/item", body: encode(json)))
+    }
+
+    @discardableResult
+    public func updateItem(id: String, _ json: [String: Any]) async throws -> [String: Any] {
+        try itemObject(await request("PUT", "object/item/\(id)", body: encode(json)))
+    }
+
+    public func deleteItem(id: String) async throws {
+        _ = try itemObject(await request("DELETE", "object/item/\(id)"))
     }
 
     public func lock() async {

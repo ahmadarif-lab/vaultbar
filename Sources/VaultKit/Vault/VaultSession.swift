@@ -9,6 +9,7 @@ public enum VaultError: Error, LocalizedError, Equatable {
     case commandFailed(String)
     case http(Int)
     case badResponse
+    case organizationItem
 
     public var errorDescription: String? {
         switch self {
@@ -20,6 +21,7 @@ public enum VaultError: Error, LocalizedError, Equatable {
         case .commandFailed(let message): return message
         case .http(let code): return "The local vault service returned HTTP \(code)."
         case .badResponse: return "Unexpected response from the local vault service."
+        case .organizationItem: return "Organization items can't be cloned here."
         }
     }
 }
@@ -31,4 +33,10 @@ public protocol VaultSession: AnyObject, Sendable {
     func lock() async
     func sync() async throws
     func snapshot() async throws -> VaultSnapshot
+    /// Creates the item (draft.id == nil) or updates it.
+    func save(_ draft: ItemDraft) async throws
+    /// Copies a personal item; the copy's name gets `nameSuffix`.
+    func clone(id: String, nameSuffix: String) async throws
+    /// Moves the item to the trash (recoverable from the web vault).
+    func delete(id: String) async throws
 }

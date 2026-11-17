@@ -18,7 +18,8 @@ struct ItemDetailView: View {
                 }
                 .buttonStyle(.plain)
                 Spacer()
-                IconButton(systemName: "lock.fill", help: t("menu.lock")) { state.lockNow() }
+                IconButton(systemName: "pencil", help: t("menu.edit")) { state.beginEdit(entry) }
+                MoreMenu(state: state, entry: entry, includeView: false)
             }
             .padding(.horizontal, 14).padding(.top, 12).padding(.bottom, 8)
 
@@ -32,7 +33,7 @@ struct ItemDetailView: View {
             }
             .padding(.horizontal, 16).padding(.bottom, 10)
 
-            ScrollView {
+            ScrollView(showsIndicators: false) {
                 VStack(spacing: 10) {
                     ForEach(entry.detailSections()) { section in
                         VStack(alignment: .leading, spacing: 0) {
@@ -66,11 +67,8 @@ struct DetailFieldRow: View {
 
     private var label: String { field.labelKey.map { t($0) } ?? field.literalLabel ?? "" }
 
-    private var openableURL: URL? {
-        guard field.kind == .uri else { return nil }
-        let text = field.value.contains("://") ? field.value : "https://" + field.value
-        guard let url = URL(string: text), ["http", "https"].contains(url.scheme?.lowercased() ?? "") else { return nil }
-        return url
+    private var fieldURL: URL? {
+        field.kind == .uri ? openableURL(field.value) : nil
     }
 
     var body: some View {
@@ -93,7 +91,7 @@ struct DetailFieldRow: View {
                         if field.kind == .secret {
                             IconButton(systemName: revealed ? "eye.slash" : "eye", help: revealed ? t("detail.hide") : t("detail.reveal")) { revealed.toggle() }
                         }
-                        if let url = openableURL {
+                        if let url = fieldURL {
                             IconButton(systemName: "arrow.up.right.square", help: t("detail.open")) { NSWorkspace.shared.open(url) }
                         }
                         IconButton(systemName: "doc.on.doc", help: t("detail.copy")) { state.copyField(field.value) }

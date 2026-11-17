@@ -19,9 +19,19 @@ enum BiometricUnlock {
     enum Failure: Error { case unavailable, cancelled, invalidated, notStored, failed }
 
     private static let service = "dev.ahmadarif.vaultbar"
-    private static let account = "master-password"
-    private static let modeKey = "biometricMode"
-    private static let stateKey = "biometricDomainState"
+
+    static let demoSlot = "demo"
+
+    /// One Keychain item per slot: one per account, plus "demo" for demo mode, so a
+    /// throwaway demo "password" can never be mistaken for a real master password.
+    private struct Ids {
+        let account: String, modeKey: String, stateKey: String
+        init(slot: String) {
+            account = "pw-\(slot)"
+            modeKey = "biometricMode.\(slot)"
+            stateKey = "biometricDomainState.\(slot)"
+        }
+    }
 
     static var isAvailable: Bool {
         let ctx = LAContext()
@@ -29,8 +39,9 @@ enum BiometricUnlock {
         return ctx.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error)
     }
 
-    static var hasStoredPassword: Bool {
-        var q = baseQuery(strict: UserDefaults.standard.string(forKey: modeKey) == "strict")
+    static func hasStoredPassword(slot: String) -> Bool {
+        let ids = Ids(slot: slot)
+        var q = baseQuery(strict: UserDefaults.standard.string(forKey: ids.modeKey) == "strict", ids: ids)
         q[kSecReturnData as String] = false
         let ctx = LAContext()
         ctx.interactionNotAllowed = true // existence check must never prompt
@@ -39,11 +50,11 @@ enum BiometricUnlock {
         return status == errSecSuccess || status == errSecInteractionNotAllowed
     }
 
-    private static func baseQuery(strict: Bool) -> [String: Any] {
+    private static func baseQuery(strict: Bool, ids: Ids) -> [String: Any] {
         var q: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
+            kSecAttrAccount as String: ids.account,
         ]
         if strict { q[kSecUseDataProtectionKeychain as String] = true }
         return q
@@ -51,19 +62,20 @@ enum BiometricUnlock {
 
     // MARK: Store
 
-    static func store(password: String) throws {
-        remove()
+    static func store(password: String, slot: String) throws {
+        let ids = Ids(slot: slot)
+        remove(slot: slot)
         let data = Data(password.utf8)
 
         var acError: Unmanaged<CFError>?
         if let acl = SecAccessControlCreateWithFlags(
             nil, kSecAttrAccessibleWhenUnlockedThisDeviceOnly, .biometryCurrentSet, &acError
         ) {
-            var q = baseQuery(strict: true)
+            var q = baseQuery(strict: true, ids: ids)
             q[kSecValueData as String] = data
             q[kSecAttrAccessControl as String] = acl
             if SecItemAdd(q as CFDictionary, nil) == errSecSuccess {
-                UserDefaults.standard.set("strict", forKey: modeKey)
+                UserDefaults.standard.set("strict", forKey: ids.modeKey)
                 return
             }
         }
@@ -72,18 +84,19 @@ enum BiometricUnlock {
         let ctx = LAContext()
         var error: NSError?
         guard ctx.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) else { throw Failure.unavailable }
-        var q = baseQuery(strict: false)
+        var q = baseQuery(strict: false, ids: ids)
         q[kSecValueData as String] = data
         q[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         guard SecItemAdd(q as CFDictionary, nil) == errSecSuccess else { throw Failure.failed }
-        UserDefaults.standard.set("gated", forKey: modeKey)
-        UserDefaults.standard.set(ctx.evaluatedPolicyDomainState?.base64EncodedString(), forKey: stateKey)
+        UserDefaults.standard.set("gated", forKey: ids.modeKey)
+        UserDefaults.standard.set(ctx.evaluatedPolicyDomainState?.base64EncodedString(), forKey: ids.stateKey)
     }
 
     // MARK: Retrieve
 
-    static func retrieve(reason: String) async throws -> String {
-        let strict = UserDefaults.standard.string(forKey: modeKey) == "strict"
+    static func retrieve(reason: String, slot: String) async throws -> String {
+        let ids = Ids(slot: slot)
+        let strict = UserDefaults.standard.string(forKey: ids.modeKey) == "strict"
         let ctx = LAContext()
         ctx.localizedReason = reason
         var error: NSError?
@@ -91,10 +104,10 @@ enum BiometricUnlock {
 
         if !strict {
             // Fingerprint set changed since enrolment: drop the stored password.
-            let saved = UserDefaults.standard.string(forKey: stateKey)
+            let saved = UserDefaults.standard.string(forKey: ids.stateKey)
             let now = ctx.evaluatedPolicyDomainState?.base64EncodedString()
             if saved != now {
-                remove()
+                remove(slot: slot)
                 throw Failure.invalidated
             }
             do {
@@ -106,7 +119,7 @@ enum BiometricUnlock {
             }
         }
 
-        var q = baseQuery(strict: strict)
+        var q = baseQuery(strict: strict, ids: ids)
         q[kSecReturnData as String] = true
         q[kSecMatchLimit as String] = kSecMatchLimitOne
         if strict { q[kSecUseAuthenticationContext as String] = ctx }
@@ -125,15 +138,16 @@ enum BiometricUnlock {
         case errSecItemNotFound: throw Failure.notStored
         case errSecUserCanceled: throw Failure.cancelled
         case errSecAuthFailed: // strict item invalidated by a fingerprint change
-            remove()
+            remove(slot: slot)
             throw Failure.invalidated
         default: throw Failure.failed
         }
     }
 
-    static func remove() {
-        for strict in [true, false] { SecItemDelete(baseQuery(strict: strict) as CFDictionary) }
-        UserDefaults.standard.removeObject(forKey: modeKey)
-        UserDefaults.standard.removeObject(forKey: stateKey)
+    static func remove(slot: String) {
+        let ids = Ids(slot: slot)
+        for strict in [true, false] { SecItemDelete(baseQuery(strict: strict, ids: ids) as CFDictionary) }
+        UserDefaults.standard.removeObject(forKey: ids.modeKey)
+        UserDefaults.standard.removeObject(forKey: ids.stateKey)
     }
 }

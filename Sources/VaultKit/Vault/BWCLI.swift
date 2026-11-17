@@ -70,6 +70,16 @@ public struct BWCLI: Sendable {
             .appendingPathComponent("bw", isDirectory: true)
     }
 
+    /// Where an account's `bw` state lives. The first account of the early single-account
+    /// builds ("default") keeps the original folder, so nobody has to log in again.
+    public static func dataDirectory(forAccount id: String) -> URL {
+        let base = defaultDataDirectory.deletingLastPathComponent()
+        if id == Account.legacyID { return defaultDataDirectory }
+        return base.appendingPathComponent("accounts", isDirectory: true)
+            .appendingPathComponent(id, isDirectory: true)
+            .appendingPathComponent("bw", isDirectory: true)
+    }
+
     public static var searchPath: String {
         let extra = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"]
         let existing = (ProcessInfo.processInfo.environment["PATH"] ?? "").split(separator: ":").map(String.init)

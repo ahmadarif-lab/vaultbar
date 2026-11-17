@@ -9,16 +9,20 @@ enum Theme {
         })
     }
 
-    static let background = dynamic(light: 0xF5F6F8, dark: 0x1C1D21)
-    static let surface = dynamic(light: 0xFFFFFF, dark: 0x26272C)
-    static let hover = dynamic(light: 0xEBEDF2, dark: 0x2E2F36)
-    static let stroke = dynamic(light: 0xDFE2E9, dark: 0x383A42)
-    static let textPrimary = dynamic(light: 0x15171C, dark: 0xF2F3F5)
-    static let textSecondary = dynamic(light: 0x6B7280, dark: 0x9BA0AB)
-    static let accent = dynamic(light: 0x4453E8, dark: 0x8390FF)
-    static let accentSoft = dynamic(light: 0xE6E8FD, dark: 0x2B2F59)
+    static let background = dynamic(light: 0xF3F6F9, dark: 0x0F1624)
+    static let surface = dynamic(light: 0xFFFFFF, dark: 0x172033)
+    static let hover = dynamic(light: 0xE8EDF3, dark: 0x1F2A40)
+    static let stroke = dynamic(light: 0xD6DDE7, dark: 0x2A3650)
+    static let textPrimary = dynamic(light: 0x1B2330, dark: 0xF3F6F9)
+    static let textSecondary = dynamic(light: 0x66738A, dark: 0x97A3B8)
+    static let accent = dynamic(light: 0x175DDC, dark: 0x6F9EFF)
+    static let accentSoft = dynamic(light: 0xE3ECFD, dark: 0x1B2B4D)
+    /// Text on a filled accent button (dark text on the light-blue dark-mode button, like the extension).
+    static let onAccent = dynamic(light: 0xFFFFFF, dark: 0x0B1220)
     static let warning = dynamic(light: 0xD9480F, dark: 0xFF8A4C)
-    static let danger = dynamic(light: 0xD1242F, dark: 0xFF6B73)
+    static let danger = dynamic(light: 0xD1242F, dark: 0xFF7B84)
+    static let digit = dynamic(light: 0x175DDC, dark: 0x7FB0FF)
+    static let symbol = dynamic(light: 0xC2301F, dark: 0xFF8D82)
 
     static let avatarHues: [UInt32] = [0x5B6CFF, 0x2F9E8F, 0xE0712C, 0xB65BD6, 0x2D8FD6, 0xD6527A, 0x6F9A2F, 0x8A6FE8]
 
@@ -69,7 +73,7 @@ struct PrimaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(.white)
+            .foregroundStyle(Theme.onAccent)
             .padding(.horizontal, 16)
             .frame(height: 32)
             .frame(maxWidth: .infinity)

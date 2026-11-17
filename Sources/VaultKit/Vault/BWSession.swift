@@ -46,4 +46,25 @@ public final class BWSession: VaultSession, @unchecked Sendable {
     public func sync() async throws { try await currentClient.sync() }
 
     public func snapshot() async throws -> VaultSnapshot { try await currentClient.snapshot() }
+
+    public func save(_ draft: ItemDraft) async throws {
+        let client = try currentClient
+        if let id = draft.id {
+            let raw = try await client.rawItem(id: id)
+            try await client.updateItem(id: id, draft.json(merging: raw))
+        } else {
+            try await client.createItem(draft.json())
+        }
+    }
+
+    public func clone(id: String, nameSuffix: String) async throws {
+        let client = try currentClient
+        let raw = try await client.rawItem(id: id)
+        if let org = raw["organizationId"] as? String, !org.isEmpty { throw VaultError.organizationItem }
+        try await client.createItem(ItemDraft.cloneJSON(from: raw, nameSuffix: nameSuffix))
+    }
+
+    public func delete(id: String) async throws {
+        try await currentClient.deleteItem(id: id)
+    }
 }

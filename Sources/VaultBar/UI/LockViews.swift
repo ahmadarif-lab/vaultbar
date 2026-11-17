@@ -7,7 +7,7 @@ struct LockView: View {
     @FocusState private var focused: Bool
 
     private var settings: AppSettings { state.settings }
-    private var touchIDShown: Bool { settings.touchIDEnabled && BiometricUnlock.isAvailable && !state.isDemo }
+    private var touchIDShown: Bool { state.touchIDActive }
 
     var body: some View {
         VStack(spacing: 14) {
@@ -18,7 +18,7 @@ struct LockView: View {
             }
             VStack(spacing: 3) {
                 Text(t("lock.title")).font(.system(size: 17, weight: .semibold)).foregroundStyle(Theme.textPrimary)
-                if let email = settings.accountEmail {
+                if let email = state.activeAccountRow?.email ?? settings.accountEmail {
                     Text(email).font(.system(size: 12)).foregroundStyle(Theme.textSecondary)
                 }
             }
@@ -45,6 +45,8 @@ struct LockView: View {
             }
             Spacer()
             HStack {
+                Button(t("acct.switch")) { state.showAccounts = true }
+                    .buttonStyle(.plain).font(.system(size: 11.5, weight: .medium)).foregroundStyle(Theme.accent)
                 Spacer()
                 Button(t("menu.quit")) { NSApp.terminate(nil) }
                     .buttonStyle(.plain).font(.system(size: 11)).foregroundStyle(Theme.textSecondary)
@@ -110,16 +112,17 @@ struct CLIMissingView: View {
     }
 }
 
+/// Login, inline in the popover (no separate window): first run, or "Add account".
 struct NeedsSetupView: View {
     let state: AppState
-    var body: some View {
-        VStack(spacing: 12) {
-            Spacer()
-            Image(systemName: "person.crop.circle.badge.plus").font(.system(size: 30, weight: .light)).foregroundStyle(Theme.accent)
-            Text(t("setup.title")).font(.system(size: 17, weight: .semibold)).foregroundStyle(Theme.textPrimary)
-            Button(t("setup.next")) { NSApp.sendAction(#selector(AppDelegate.openSetupWindow), to: nil, from: nil) }
-                .buttonStyle(PrimaryButtonStyle()).padding(.horizontal, 60)
-            Spacer()
-        }
+    @State private var model: SetupModel
+
+    init(state: AppState, adding: Bool = false) {
+        self.state = state
+        let m = SetupModel(state: state, adding: adding)
+        if adding { m.onCancel = { [weak state] in state?.cancelAddAccount() } }
+        _model = State(initialValue: m)
     }
+
+    var body: some View { SetupView(model: model) }
 }

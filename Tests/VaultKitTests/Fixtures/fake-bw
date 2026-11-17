@@ -79,8 +79,36 @@ elif args[:1] == ["serve"]:
                 return self.send({"success": True, "data": {"object": "list", "data": [{"id": "f1", "name": "Work"}]}})
             if self.path == "/list/object/organizations":
                 return self.send({"success": True, "data": {"object": "list", "data": []}})
+            if self.path.startswith("/object/item/"):
+                iid = self.path.rsplit("/", 1)[1]
+                for it in items:
+                    if it["id"] == iid:
+                        return self.send({"success": True, "data": dict(it, revisionDate="2026-01-01T00:00:00Z", passwordHistory=[])})
+                return self.send({"success": False, "message": "Not found."}, 404)
             self.send({"success": False}, 404)
+        def body(self):
+            n = int(self.headers.get("Content-Length", 0))
+            return json.loads(self.rfile.read(n) or b"{}")
+        def do_PUT(self):
+            if self.path.startswith("/object/item/"):
+                iid = self.path.rsplit("/", 1)[1]
+                new = self.body()
+                for i, it in enumerate(items):
+                    if it["id"] == iid:
+                        new["id"] = iid; items[i] = new
+                        return self.send({"success": True, "data": new})
+            self.send({"success": False, "message": "Not found."}, 404)
+        def do_DELETE(self):
+            if self.path.startswith("/object/item/"):
+                iid = self.path.rsplit("/", 1)[1]
+                before = len(items)
+                items[:] = [it for it in items if it["id"] != iid]
+                if len(items) < before: return self.send({"success": True})
+            self.send({"success": False, "message": "Not found."}, 404)
         def do_POST(self):
+            if self.path == "/object/item":
+                new = self.body(); new["id"] = "new-%d" % (len(items) + 1); items.append(new)
+                return self.send({"success": True, "data": new})
             if self.path == "/sync":
                 synced["n"] += 1
                 items.append({"id": "3", "type": 2, "name": "Added by sync"}) if synced["n"] == 1 else None

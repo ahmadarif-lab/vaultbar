@@ -7,7 +7,7 @@ cask "vaultbar" do
 
   url "https://github.com/ahmadarif-lab/vaultbar/releases/download/v#{version}/VaultBar.dmg"
   name "VaultBar"
-  desc "Menu bar app for a Bitwarden-compatible vault: search, copy and live TOTP codes"
+  desc "Menu bar app for a Bitwarden-compatible vault: vault, generator and live 2FA codes"
   homepage "https://github.com/ahmadarif-lab/vaultbar"
 
   depends_on formula: "bitwarden-cli"

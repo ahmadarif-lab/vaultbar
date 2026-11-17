@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="Resources/screenshots/hero.webp" alt="VaultBar popover: vault list with live TOTP codes, and an item detail view" width="760">
+  <img src="Resources/screenshots/hero.webp" alt="VaultBar: vault list, 2FA codes and password generator" width="820">
 </p>
 
 > The screenshots use a built-in demo vault with invented data. VaultBar is an independent
@@ -18,20 +18,36 @@
 
 ## Features
 
-- **Fast**: global hotkey (default `⌃⌥⌘V`), type to search, `↩` copies the password, `⌘C` the
-  username, `⌘T` the TOTP code. Fuzzy search over name, username, URIs and folder.
-- **Live TOTP for every item with an authenticator key**, computed locally (RFC 6238, tested
-  against the RFC vectors): base32 secrets, `otpauth://` URIs (SHA1/256/512, 6 or 8 digits, any
-  period) and `steam://` keys. Countdown ring, next code previewed in the last 5 seconds.
+The layout follows the browser extension: **Vault**, **Generator**, **2FA** and **Settings** tabs.
+Everything, including first-run login and all settings, lives in the popover: no extra windows.
+
+- **Vault**: fuzzy search, folder / type / organization filters, favorites, per-item copy and a
+  ⋮ menu with **copy, edit, clone and delete** (delete moves to the trash, with a confirmation).
+  **Add** creates logins, cards, identities and notes, including custom fields and an
+  authenticator key. Edits are merged into the item's original JSON, so password history,
+  attachments and passkeys survive.
+- **2FA**: every item with an authenticator key, with live codes computed locally (RFC 6238,
+  tested against the RFC vectors): base32 secrets, `otpauth://` URIs (SHA1/256/512, 6 or 8
+  digits, any period) and `steam://` keys. Countdown ring, next code previewed in the last 5 s.
+  Works on the free plan; the key is your own data.
+- **Generator**: passwords (length 5-128, character sets, minimum numbers/symbols, avoid
+  ambiguous) and passphrases (EFF large wordlist), generated locally with the system CSPRNG.
+  Options persist; generated values never do.
 - **Bitwarden cloud (US and EU), self-hosted Bitwarden and Vaultwarden.**
 - **Touch ID unlock** after the first master-password unlock; auto-lock on idle, sleep, screen
   lock and fast user switching.
 - **Clipboard hygiene**: copies are marked concealed/transient so clipboard managers skip them,
   and cleared after a delay (only if the clipboard still holds the copied value).
-- Read-only item detail (card, identity, notes, custom fields with hidden-field masking),
-  folder / type / organization filters, English and Bahasa Indonesia, light and dark.
+- **Settings tab**: Touch ID, auto-lock, clipboard timeout, global hotkey recorder, start at login,
+  website icons, organization items, language and log out.
+- Item detail with hidden-field masking, English and Bahasa Indonesia, light and dark.
 
-Not in v1: creating or editing items, attachments, Sends, the generator, autofill.
+Keyboard: global hotkey (default `⌃⌥⌘V`), `↑↓` select, `↩` copy password (code in 2FA, value in
+Generator), `⌘C` username, `⌘T` code, `→`/`←` open/close detail, `⌘N` new item, `⌘E` edit,
+`⌘S` save, `⌘R` regenerate, `⌘1`-`⌘4` tabs, `⌘L` lock, `Esc` back/close.
+
+Not included: autofill into browsers or other apps, attachments, Sends, vault health, organization
+and collection management.
 
 ## Requirements
 
@@ -66,7 +82,7 @@ swift test                      # unit + integration tests (uses a fake `bw`)
 ```
 VaultBar ── spawns ──▶ bw serve --hostname 127.0.0.1 --port <random>   (only while unlocked)
    │                         ▲
-   └── REST (localhost) ─────┘   /list/object/items, /folders, /organizations, /sync, /lock
+   └── REST (localhost) ─────┘   /list/object/*, /object/item (create, update, delete), /sync, /lock
 ```
 
 - VaultBar keeps its own `bw` state in `~/Library/Application Support/VaultBar/bw`, so it never

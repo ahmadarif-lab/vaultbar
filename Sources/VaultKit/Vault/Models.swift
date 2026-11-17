@@ -53,6 +53,9 @@ public struct CustomField: Codable, Sendable, Hashable {
     public var name: String?
     public var value: String?
     public var type: Kind?
+    public init(name: String? = nil, value: String? = nil, type: Kind? = .text) {
+        self.name = name; self.value = value; self.type = type
+    }
 }
 
 /// One vault item as returned by `bw serve` (`/list/object/items`).
