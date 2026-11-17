@@ -85,6 +85,19 @@ enum SelfTest {
         }
         check(state.entries.count == start, "back to the original item count")
 
+        // Suggestions: the item for the site in front comes first, and goes away while searching
+        state.tab = .vault
+        state.query = ""
+        state.suggestionContext = SuggestionContext(appName: "Google Chrome", bundleID: "com.google.Chrome", url: "https://github.com/settings/profile", windowTitle: "Profile")
+        check(state.rows.first?.section == .suggested && state.rows.first?.entry.name == "GitHub", "the login for the site in front is suggested first")
+        check(state.selectedEntry == nil || state.rows.contains { $0.id == state.selectedRowID }, "the selection stays on a visible row")
+        state.query = "cloud"
+        check(!state.rows.contains { $0.section == .suggested }, "no suggestions while searching")
+        state.query = ""
+        state.suggestionContext = SuggestionContext(appName: "Google Chrome", bundleID: "com.google.Chrome", url: "https://news.example.org/today")
+        check(!state.rows.contains { $0.section == .suggested }, "an unrelated page suggests nothing")
+        state.suggestionContext = nil
+
         // Favorites: toggle from the menu action, filter, toggle back
         state.tab = .vault
         if let plain = state.entries.first(where: { !$0.isFavorite && $0.item.organizationId == nil }) {

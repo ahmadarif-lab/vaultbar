@@ -48,7 +48,14 @@ Light or dark follows macOS by default, or pick one in Settings.
   types the username, Tab, then the password (or just one of them, or the 2FA code) into the field that
   has focus. It works in any browser or app and nothing goes through the clipboard. Click the username
   field first; an optional setting presses Return afterwards. It needs the macOS **Accessibility**
-  permission, which the app asks for the first time. It does not detect login forms or match websites.
+  permission, which the app asks for the first time. It does not detect login forms.
+- **Suggested items**: when the popover opens, the vault list starts with the logins that fit the app or
+  site you were in: a *Suggested for github.com* section whose rows have a one-click auto-type button,
+  and the first one is already selected, so `⌘↩` types it. Sites are matched by base domain (a
+  subdomain finds the main site's login); for Safari and Chromium browsers (Chrome, Brave, Edge, Arc,
+  Vivaldi, Opera) VaultBar asks the browser for its current tab address, and macOS asks once whether
+  that is allowed. Other apps and Firefox are matched by the window title (with the Accessibility
+  permission) or the app name. It runs on your Mac only, is not stored, and can be turned off in Settings.
 - **Scan a setup QR code**: when a site shows a QR code to register 2FA, read it from the screen
   (drag a box around it), from an image file, or from a screenshot on the clipboard. The key, name
   and username are filled in for you. Google Authenticator's bulk export code is not supported.

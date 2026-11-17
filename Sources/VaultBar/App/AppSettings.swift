@@ -66,6 +66,8 @@ final class AppSettings {
     @ObservationIgnored var onHotkeyChanged: (() -> Void)?
     var appearance: AppearanceChoice { didSet { defaults.set(appearance.rawValue, forKey: "appearance"); onAppearanceChanged?() } }
     @ObservationIgnored var onAppearanceChanged: (() -> Void)?
+    /// Suggest items for the app or site in front (asks the browser for its address; see ActiveContext).
+    var suggestItems: Bool { didSet { defaults.set(suggestItems, forKey: "suggestItems") } }
     /// Auto-type presses Return at the end of a login, password or code.
     var autoTypeEnter: Bool { didSet { defaults.set(autoTypeEnter, forKey: "autoTypeEnter") } }
     /// Lock the vault the moment the popover closes. Off by default.
@@ -98,6 +100,7 @@ final class AppSettings {
         hotkeyKeyCode = UInt32(d.object(forKey: "hotkeyKeyCode") as? Int ?? Int(Self.defaultHotkeyKeyCode))
         hotkeyModifiers = UInt32(d.object(forKey: "hotkeyModifiers") as? Int ?? Int(Self.defaultHotkeyModifiers))
         appearance = AppearanceChoice(rawValue: d.string(forKey: "appearance") ?? "") ?? .system
+        suggestItems = d.object(forKey: "suggestItems") as? Bool ?? true
         autoTypeEnter = d.bool(forKey: "autoTypeEnter")
         closeAfterCopy = d.bool(forKey: "closeAfterCopy")
         lockOnClose = d.bool(forKey: "lockOnClose")

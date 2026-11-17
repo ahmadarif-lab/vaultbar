@@ -24,6 +24,8 @@
     <true/>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>VaultBar reads the address of your browser's current tab to suggest matching logins.</string>
     <key>NSFaceIDUsageDescription</key>
     <string>VaultBar uses Touch ID to unlock your vault.</string>
 </dict>

@@ -136,9 +136,11 @@ struct VaultTabView: View {
                     LazyVStack(spacing: 6) {
                         ForEach(sectionOrder(rows), id: \.self) { section in
                             let group = rows.filter { $0.section == section }
-                            SectionTitle(title: AppState.title(for: section), count: group.count)
+                            SectionTitle(title: section == .suggested
+                                         ? t("section.suggested", state.suggestionContext?.label ?? "")
+                                         : AppState.title(for: section), count: group.count)
                             ForEach(group) { row in
-                                ItemRow(state: state, entry: row.entry, selected: state.selectedRowID == row.id)
+                                ItemRow(state: state, entry: row.entry, selected: state.selectedRowID == row.id, rowID: row.id, suggested: section == .suggested)
                                     .id(row.id)
                             }
                         }
@@ -177,6 +179,8 @@ struct ItemRow: View {
     let state: AppState
     let entry: VaultEntry
     let selected: Bool
+    let rowID: String
+    var suggested = false
 
     var body: some View {
         HStack(spacing: 10) {
@@ -202,6 +206,9 @@ struct ItemRow: View {
                 }
             }
             Spacer(minLength: 4)
+            if suggested {
+                IconButton(systemName: "keyboard", help: t("autotype.login")) { state.autoType(entry, mode: .login) }
+            }
             if !ItemMenu.copyOptions(state: state, entry: entry).isEmpty {
                 IconButton(systemName: "doc.on.doc", help: t("row.copy")) { ItemMenu.copyButtonPressed(state: state, entry: entry) }
             }
@@ -212,7 +219,7 @@ struct ItemRow: View {
         .background(RoundedRectangle(cornerRadius: 9).fill(selected ? Theme.accentSoft : Theme.surface))
         .overlay(RoundedRectangle(cornerRadius: 9).stroke(selected ? Theme.accent.opacity(0.6) : Theme.stroke))
         .contentShape(Rectangle())
-        .onTapGesture { state.selectedRowID = "all-\(entry.id)"; state.openDetail(entry) }
+        .onTapGesture { state.selectedRowID = rowID; state.openDetail(entry) }
     }
 }
 

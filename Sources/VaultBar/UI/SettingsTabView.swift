@@ -244,6 +244,7 @@ struct SettingsTabView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading).padding(12)
             Rectangle().fill(Theme.stroke).frame(height: 1)
+            ToggleRow(title: t("autotype.suggest"), note: t("autotype.suggestNote"), isOn: $settings.suggestItems)
             ToggleRow(title: t("autotype.enter"), isOn: $settings.autoTypeEnter)
             ActionRow(icon: AutoType.isTrusted ? "checkmark.shield" : "exclamationmark.shield", title: t("autotype.access"),
                       detail: AutoType.isTrusted ? t("autotype.allowed") : t("autotype.notAllowed"), divider: false) {

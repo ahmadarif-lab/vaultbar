@@ -71,6 +71,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             if retries > 0 { DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in self?.show(retries: retries - 1) } }
             return
         }
+        state.captureSuggestionContext() // before activating: who is in front right now?
         NSApp.activate(ignoringOtherApps: true)
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         popover.contentViewController?.view.window?.makeKey()

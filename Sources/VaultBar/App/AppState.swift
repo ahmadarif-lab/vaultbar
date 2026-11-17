@@ -6,7 +6,7 @@ import VaultKit
 final class AppState {
     enum Phase { case checking, needsSetup, locked, unlocked }
     enum Tab: CaseIterable { case vault, generator, authenticator, settings }
-    enum ListSection: String { case favorites, authenticator, all, results }
+    enum ListSection: String { case suggested, favorites, authenticator, all, results }
     enum FolderFilter: Hashable { case all, none, folder(String) }
     enum OrgFilter: Hashable { case all, personal, org(String) }
 
@@ -28,6 +28,8 @@ final class AppState {
     var folderFilter: FolderFilter = .all { didSet { selectFirst() } }
     var typeFilter: ItemType? { didSet { selectFirst() } }
     var orgFilter: OrgFilter = .all { didSet { selectFirst() } }
+    /// What was in front when the popover opened (for the "Suggested" section). Memory only.
+    var suggestionContext: SuggestionContext?
     var favoritesOnly = false { didSet { selectFirst() } }
     var selectedRowID: String?
     var detailEntryID: String?
@@ -401,10 +403,30 @@ final class AppState {
             return scored.map { Row(id: "results-\($0.entry.id)", section: .results, entry: $0.entry) }
         }
         var out: [Row] = []
+        for e in suggestedEntries { out.append(Row(id: "suggested-\(e.id)", section: .suggested, entry: e)) }
         for e in base where e.isFavorite { out.append(Row(id: "favorites-\(e.id)", section: .favorites, entry: e)) }
         if favoritesOnly { return out } // the favorites are the whole list; no duplicate "All items"
         for e in base { out.append(Row(id: "all-\(e.id)", section: .all, entry: e)) }
         return out
+    }
+
+    /// Items that fit the app or site in front. Hidden while searching or filtering to favorites.
+    var suggestedEntries: [VaultEntry] {
+        guard settings.suggestItems, tab == .vault, !favoritesOnly, let context = suggestionContext else { return [] }
+        let candidates = entries.filter { !(settings.hideOrgItems && $0.item.organizationId != nil) }
+        return Suggestions.match(candidates, for: context)
+    }
+
+    /// Called when the popover opens: notes the app in front and, for a browser, the page.
+    func captureSuggestionContext() {
+        guard settings.suggestItems, let app = ActiveContext.frontApp() else { return } // VaultBar in front: keep what we had
+        let includeURL = true
+        Task { @MainActor in
+            let context = await ActiveContext.capture(app, includeBrowserURL: includeURL)
+            guard suggestionContext != context else { return }
+            suggestionContext = context
+            if tab == .vault, query.isEmpty { selectFirst() }
+        }
     }
 
     private var authenticatorRows: [Row] {
@@ -422,6 +444,7 @@ final class AppState {
 
     static func title(for section: ListSection) -> String {
         switch section {
+        case .suggested: return t("section.suggested")
         case .favorites: return t("section.favorites")
         case .authenticator: return t("section.authenticator")
         case .all: return t("section.all")
